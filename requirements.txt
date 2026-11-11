@@ -1,0 +1,8 @@
+fastapi==0.162.0
+uvicorn==0.54.0
+psycopg[binary,pool]==3.3.8
+bcrypt==5.0.0
+python-dotenv==1.2.4
+msal==1.39.0
+cryptography==50.0.2
+PyJWT==2.15.1

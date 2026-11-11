@@ -1,0 +1,37 @@
+.site-head { justify-content: space-between; }
+.sh-brand { flex-shrink: 0; }
+.sh-right { min-width: 0; }
+#whoami { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pilot-badge { flex: none; padding: 4px 10px; border-radius: 99px; background: #e3eaf8; color: var(--navy); font-weight: 700; }
+.pilot-main { display: flex; justify-content: center; height: calc(100dvh - 62px); padding: 20px; }
+.pilot-shell { width: min(100%, 660px); height: 100%; min-height: 0; max-height: none; flex: none; border-radius: 20px; box-shadow: 0 0 0 1px #d4d3cc, 0 20px 40px -24px #0004; }
+.pilot-shell .screen { margin-top: 0; }
+.pilot-shell .tabbar { gap: 2px; padding: 6px 8px max(6px, env(safe-area-inset-bottom)); }
+.pilot-shell .tabbar button { flex: 1; min-width: 0; padding: 8px 4px; color: var(--ink-2); display: grid; gap: 2px; place-items: center; font-size: 11px; font-weight: 600; }
+.pilot-shell .tabbar button.on { background: #e8eefb; color: var(--navy); }
+.pilot-shell .auth { max-width: 430px; margin: auto; }
+.pilot-shell .form input { min-width: 0; }
+.pilot-shell .topbar { min-height: 54px; }
+.manage-form { padding: 16px; }
+.manage-form textarea { border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: #fafafa; resize: vertical; }
+.manage-form textarea:focus { border-color: var(--ink); background: #fff; }
+.event-card { padding: 18px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; overflow-wrap: anywhere; }
+.event-card h2 { font-size: 18px; }
+.event-meta, .event-meta time { color: var(--ink-2); font-size: 13px; }
+.event-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.event-card .badge { justify-self: start; }
+.ticket-number { display: grid; gap: 3px; color: var(--ink-2); }
+.ticket-number code { color: var(--navy); }
+.page-controls { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 16px; }
+.page-controls span { color: var(--ink-2); font-size: 13px; }
+
+@media (max-width: 600px) {
+  .pilot-main { height: calc(100dvh - 53px); padding: 0; }
+  .pilot-shell { border-radius: 0; }
+  .pilot-shell .tabbar button { font-size: 9px; }
+  .pilot-shell .tabbar .ic { width: 21px; height: 21px; }
+}
+
+@media (max-width: 360px) {
+  .pilot-shell .tabbar button span { display: none; }
+}
