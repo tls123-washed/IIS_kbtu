@@ -1,0 +1,33 @@
+{
+  "origin": "https://campus-threads-am1s.onrender.com",
+  "tested_at": "2026-11-18T15:01:14.711956+00:00",
+  "checks": [
+    "Live HTTPS site and database health; code registration disabled",
+    "Registration rejects addresses outside kbtu.kz",
+    "Both registrations persist in the intended Neon database; secure session cookies",
+    "Community creation and membership",
+    "Organizer can publish an event; ordinary user cannot",
+    "Two independent browser sessions sign in through the live site",
+    "Desktop layout fits 1440px with wide feed",
+    "Dark theme persists after reload",
+    "Published thread appears in another session without reloading",
+    "Like from another session updates automatically",
+    "Free event pass is issued through the live interface",
+    "No browser JavaScript exceptions",
+    "Ticket persists, repeated issue returns same ticket, last-seat limit enforced",
+    "Logout invalidates the session"
+  ],
+  "warm_read_probe": {
+    "concurrent_http_clients": 20,
+    "authenticated_accounts": 1,
+    "requests": 60,
+    "errors": 0,
+    "duration_seconds": 25.15,
+    "requests_per_second": 2.39,
+    "median_ms": 1704.1,
+    "p95_ms": 20572.9,
+    "note": "Short warm read-only probe of the live Render + Neon instance; not a maximum-user or sustained-load measurement."
+  },
+  "passed": true,
+  "temporary_records_removed": true
+}
