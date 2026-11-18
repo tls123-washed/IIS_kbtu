@@ -102,6 +102,13 @@ def index(request: Request):
         "<!-- APP_BOOTSTRAP -->",
         f'<script id="app-bootstrap" type="application/json">{bootstrap}</script>',
     )
+    # Первое отображение не ждёт отдельных CSS-файлов и файла темы.
+    styles = "\n".join((ROOT / name).read_text(encoding="utf-8") for name in (
+        "site/styles.css", "pilot/assets/pilot.css",
+    ))
+    theme = (ROOT / "pilot/assets/theme.js").read_text(encoding="utf-8")
+    html = html.replace("<!-- APP_STYLES -->", f"<style>{styles}</style>")
+    html = html.replace("<!-- APP_THEME -->", f"<script>{theme}</script>")
     return HTMLResponse(html, headers={"Cache-Control": "no-store", "Vary": "Cookie"})
 
 
