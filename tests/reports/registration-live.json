@@ -1,0 +1,12 @@
+{
+  "testedAt": "2026-11-18T15:40:12.982Z",
+  "origin": "https://campus-threads-am1s.onrender.com",
+  "revision": "8c817525825d",
+  "passed": true,
+  "checks": [
+    "One registration form, no email code field or code request button",
+    "Account created through the live interface and signed in immediately",
+    "Session survives reload; logout and password login work",
+    "Registration performs no request to send an email code"
+  ]
+}
