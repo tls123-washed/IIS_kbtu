@@ -21,7 +21,7 @@ npm run test:front
 Для API:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -p test_pilot.py -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py" -v
 ```
 
 Результаты нагрузки относятся к машине, на которой выполнен прогон. Для оценки Render/Neon нужно провести измерение на размещённом тестовом экземпляре с такой же конфигурацией и отдельной тестовой базой.

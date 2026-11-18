@@ -107,6 +107,8 @@ async def run(args):
                 "results": results,
             }
             (output / "load.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+            if any(result["errors"] for result in results):
+                raise SystemExit(1)
         finally:
             server.terminate()
             try:
