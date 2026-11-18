@@ -218,7 +218,12 @@ def login(body: Login, request: Request, response: Response, db: Db):
     return user
 
 
-@router.get("/me")
+def require_session_cookie(request: Request):
+    if len(request.cookies.get(COOKIE, "")) != 43:
+        raise HTTPException(401, "Войдите в аккаунт.")
+
+
+@router.get("/me", dependencies=[Depends(require_session_cookie)])
 def me(user: User):
     return user
 

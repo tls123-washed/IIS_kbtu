@@ -1,4 +1,5 @@
 from typing import Annotated
+from time import perf_counter
 
 from anyio import CancelScope, to_thread
 from fastapi import Depends, Request
@@ -23,7 +24,9 @@ def make_pool():
 async def connection(request: Request):
     pool = request.app.state.pool
     # Ожидающие БД запросы не занимают потоки, которые нужны обработчикам FastAPI.
+    started = perf_counter()
     conn = await to_thread.run_sync(pool.getconn, limiter=request.app.state.connection_limiter)
+    request.state.db_wait_ms = (perf_counter() - started) * 1000
     try:
         yield conn
     finally:

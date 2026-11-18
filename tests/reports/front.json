@@ -1,75 +1,75 @@
 {
-  "testedAt": "2026-11-18T14:36:38.613Z",
+  "testedAt": "2026-11-18T15:18:26.034Z",
   "tests": [
     {
       "name": "01 · Сайт открывается без общего пароля",
       "passed": true,
-      "milliseconds": 324
+      "milliseconds": 253
     },
     {
       "name": "02 · Вход по имени пользователя и паролю",
       "passed": true,
-      "milliseconds": 448
+      "milliseconds": 449
     },
     {
       "name": "03 · Сессия сохраняется после обновления страницы",
       "passed": true,
-      "milliseconds": 290
+      "milliseconds": 252
     },
     {
       "name": "04 · Выход закрывает сессию",
       "passed": true,
-      "milliseconds": 579
+      "milliseconds": 546
     },
     {
       "name": "05 · Регистрация с адресом КБТУ",
       "passed": true,
-      "milliseconds": 615
+      "milliseconds": 479
     },
     {
       "name": "06 · Другой почтовый домен отклоняется",
       "passed": true,
-      "milliseconds": 307
+      "milliseconds": 275
     },
     {
       "name": "07 · Тёмная тема переключается и сохраняется",
       "passed": true,
-      "milliseconds": 340
+      "milliseconds": 354
     },
     {
       "name": "08 · Десктоп использует боковую навигацию и широкую ленту",
       "passed": true,
-      "milliseconds": 269
+      "milliseconds": 257
     },
     {
       "name": "09 · Мобильный экран помещается в 390 пикселей",
       "passed": true,
-      "milliseconds": 226
+      "milliseconds": 217
     },
     {
       "name": "10 · Нажатие анимируется, reduced motion учитывается",
       "passed": true,
-      "milliseconds": 292
+      "milliseconds": 287
     },
     {
       "name": "11 · Публикация нового треда",
       "passed": true,
-      "milliseconds": 317
+      "milliseconds": 300
     },
     {
       "name": "12 · Лайк добавляется и убирается",
       "passed": true,
-      "milliseconds": 375
+      "milliseconds": 366
     },
     {
       "name": "13 · Ответ сохраняется в треде",
       "passed": true,
-      "milliseconds": 376
+      "milliseconds": 360
     },
     {
       "name": "14 · Анонимная публикация скрывает автора",
       "passed": true,
-      "milliseconds": 343
+      "milliseconds": 342
     },
     {
       "name": "15 · Удаление своей публикации",
@@ -84,22 +84,22 @@
     {
       "name": "17 · Создание сообщества и вступление",
       "passed": true,
-      "milliseconds": 398
+      "milliseconds": 374
     },
     {
       "name": "18 · Организатор публикует мероприятие",
       "passed": true,
-      "milliseconds": 353
+      "milliseconds": 339
     },
     {
       "name": "19 · Получение бесплатного пропуска",
       "passed": true,
-      "milliseconds": 310
+      "milliseconds": 291
     },
     {
       "name": "20 · Страницы ленты переходят без дублей",
       "passed": true,
-      "milliseconds": 291
+      "milliseconds": 263
     }
   ]
 }

@@ -1,5 +1,7 @@
 """Интеграционные проверки на отдельной PostgreSQL с именем базы *_test."""
 import os
+import json
+import re
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
@@ -181,6 +183,30 @@ class PilotTest(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertNotIn("WWW-Authenticate", response.headers)
             self.assertEqual(self.client.get("/api/feed").status_code, 401)
+
+    def test_guest_startup_does_not_wait_for_database(self):
+        # Даже при недоступной БД гость может открыть форму, а /me сразу даёт 401.
+        with patch.object(app.state.pool, "getconn", side_effect=AssertionError("Guest accessed DB")):
+            page = self.client.get("/")
+            self.assertEqual(page.status_code, 200)
+            bootstrap = json.loads(re.search(
+                r'<script id="app-bootstrap" type="application/json">(.*?)</script>', page.text
+            ).group(1))
+            self.assertFalse(bootstrap["has_session"])
+            self.assertTrue(bootstrap["auth"]["code_signup"])
+            self.assertEqual(self.client.get("/api/auth/me").status_code, 401)
+            self.assertEqual(page.headers["Cache-Control"], "no-store")
+            self.assertIn("Cookie", page.headers["Vary"])
+
+    def test_session_bootstrap_is_a_hint_not_authentication(self):
+        self.client.cookies.set("campus_session", "x" * 43)
+        page = self.client.get("/")
+        bootstrap = json.loads(re.search(
+            r'<script id="app-bootstrap" type="application/json">(.*?)</script>', page.text
+        ).group(1))
+        self.assertTrue(bootstrap["has_session"])
+        self.assertEqual(self.client.get("/api/auth/me").status_code, 401)
+        self.assertEqual(self.client.get("/api/feed").status_code, 401)
 
     def test_registration_and_session(self):
         client = self.client

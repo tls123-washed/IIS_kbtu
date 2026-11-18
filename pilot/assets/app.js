@@ -21,25 +21,38 @@ class ApiError extends Error {
 async function api(path, { method = 'GET', body, query, paged = false } = {}) {
   const url = new URL('/api' + path, location.origin);
   if (query) url.search = new URLSearchParams(query);
-  let response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    response = await fetch(url, {
+    const response = await fetch(url, {
       method,
       credentials: 'same-origin',
       headers: body ? { 'Content-Type': 'application/json' } : {},
       body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
-  } catch {
-    throw new Error('Сервер недоступен. Проверьте соединение и повторите попытку.');
+    if (response.status === 204) return;
+    const data = await response.json().catch(error => {
+      if (controller.signal.aborted) throw error;
+      return null;
+    });
+    if (!response.ok) throw new ApiError(response.status, data?.detail || 'Ошибка сервера. Попробуйте ещё раз.');
+    if (data === null) throw new Error('Сервер прислал неполный ответ. Попробуйте ещё раз.');
+    return paged ? {
+      items: data,
+      next: response.headers.get('X-Next-Cursor'),
+      canCreateEvent: response.headers.get('X-Can-Create-Event') === '1',
+    } : data;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (controller.signal.aborted) throw new Error(method === 'GET'
+      ? 'Сервер не ответил вовремя. Повторите подключение.'
+      : 'Ответ сервера задерживается. Обновите страницу перед повторным действием.');
+    if (error instanceof TypeError) throw new Error('Сервер недоступен. Проверьте соединение и повторите попытку.');
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
-  if (response.status === 204) return;
-  const data = await response.json().catch(() => null);
-  if (!response.ok) throw new ApiError(response.status, data?.detail || 'Ошибка сервера. Попробуйте ещё раз.');
-  return paged ? {
-    items: data,
-    next: response.headers.get('X-Next-Cursor'),
-    canCreateEvent: response.headers.get('X-Can-Create-Event') === '1',
-  } : data;
 }
 
 const views = createViews(api, app);
@@ -180,6 +193,7 @@ const send = (path, body) => api(path, { method: 'POST', body });
 const toggle = (path, enabled) => api(path, { method: 'PUT', body: { enabled } });
 
 const actions = {
+  startup: initialize,
   nav(el) {
     const name = el.dataset.go;
     app.history = [];
@@ -364,15 +378,37 @@ const microsoftMessages = {
   linked: 'Вход через Microsoft подключён.',
 };
 
-try {
-  app.auth = await api('/auth/options');
-  await startSession(await api('/auth/me'));
-} catch (error) {
-  await startSession(null);
-  if (error.status !== 401) failure(error);
+let initializing = false;
+async function initialize() {
+  if (initializing) return;
+  initializing = true;
+  window.campusStartup?.ready();
+  try {
+    const bootstrap = JSON.parse($('#app-bootstrap')?.textContent || 'null');
+    app.auth = bootstrap?.auth || await api('/auth/options');
+    if (bootstrap?.has_session === false) {
+      // Гость сразу видит вход. База понадобится после отправки формы.
+      await startSession(null);
+    } else {
+      screen.innerHTML = '<p class="empty" role="status">Проверяем сохранённый вход…</p>';
+      try {
+        const user = await api('/auth/me');
+        await startSession(user);
+      } catch (error) {
+        if (error.status !== 401) throw error;
+        await startSession(null);
+      }
+    }
+    if (microsoftResult === 'profile' && app.auth.microsoft && !app.me) {
+      await go('microsoftProfile', {}, false);
+    } else if (Object.hasOwn(microsoftMessages, microsoftResult)) {
+      toast(microsoftMessages[microsoftResult], microsoftResult === 'linked' ? 'ok' : 'err');
+    }
+  } catch (error) {
+    screen.innerHTML = `<div class="empty" role="alert"><p>${esc(error.message)}</p>
+      <button class="btn primary" data-act="startup">Повторить подключение</button></div>`;
+  } finally {
+    initializing = false;
+  }
 }
-if (microsoftResult === 'profile' && app.auth.microsoft && !app.me) {
-  await go('microsoftProfile', {}, false);
-} else if (Object.hasOwn(microsoftMessages, microsoftResult)) {
-  toast(microsoftMessages[microsoftResult], microsoftResult === 'linked' ? 'ok' : 'err');
-}
+await initialize();

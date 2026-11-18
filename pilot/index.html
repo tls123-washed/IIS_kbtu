@@ -4,12 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <!-- APP_BOOTSTRAP -->
   <title>Campus Threads · KBTU</title>
   <meta name="description" content="Обсуждения, сообщества и мероприятия КБТУ.">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <script src="/assets/theme.js"></script>
   <link rel="stylesheet" href="/assets/styles.css">
   <link rel="stylesheet" href="/assets/pilot.css">
+  <link rel="modulepreload" href="/assets/ui.js">
+  <link rel="modulepreload" href="/assets/views.js">
 </head>
 <body>
   <a class="skip-link" href="#screen">Перейти к содержимому</a>
@@ -53,6 +56,31 @@
       </div>
     </main>
   </div>
-  <script type="module" src="/assets/app.js"></script>
+  <script>
+    // Это сообщение работает, даже если основной файл приложения не загрузился.
+    (() => {
+      let ready = false;
+      function fail() {
+        if (ready) return;
+        const panel = document.createElement('div');
+        panel.className = 'empty';
+        panel.setAttribute('role', 'alert');
+        const text = document.createElement('p');
+        text.textContent = 'Не удалось загрузить приложение. Проверьте соединение и попробуйте ещё раз.';
+        const retry = document.createElement('button');
+        retry.className = 'btn primary';
+        retry.textContent = 'Загрузить заново';
+        retry.addEventListener('click', () => location.reload());
+        panel.append(text, retry);
+        document.getElementById('screen').replaceChildren(panel);
+      }
+      const timer = setTimeout(fail, 12000);
+      window.campusStartup = { ready() { ready = true; clearTimeout(timer); } };
+      window.addEventListener('error', event => {
+        if (event.target?.id === 'campus-app') { clearTimeout(timer); fail(); }
+      }, true);
+    })();
+  </script>
+  <script type="module" id="campus-app" src="/assets/app.js"></script>
 </body>
 </html>

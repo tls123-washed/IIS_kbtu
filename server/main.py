@@ -1,9 +1,12 @@
 from contextlib import asynccontextmanager
+import json
+import os
+from time import perf_counter
 
 from anyio import CapacityLimiter
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from psycopg.errors import ForeignKeyViolation
 from psycopg_pool import PoolTimeout
@@ -40,6 +43,7 @@ app.include_router(events.router)
 
 @app.middleware("http")
 async def browser_policy(request: Request, call_next):
+    started = perf_counter()
     config = settings()
     api = request.url.path.startswith("/api/")
     if api and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
@@ -49,8 +53,15 @@ async def browser_policy(request: Request, call_next):
         if request.headers.get("origin") not in origins:
             return JSONResponse({"detail": "Откройте приложение по его основному адресу."}, status_code=403)
     response = await call_next(request)
-    if api or request.url.path.startswith("/assets/"):
+    if api:
         response.headers["Cache-Control"] = "no-store"
+    elif request.url.path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, no-cache"
+    timings = [f"app;dur={(perf_counter() - started) * 1000:.1f}"]
+    if hasattr(request.state, "db_wait_ms"):
+        timings.append(f"dbwait;dur={request.state.db_wait_ms:.1f}")
+    response.headers["Server-Timing"] = ", ".join(timings)
+    response.headers["X-App-Revision"] = os.getenv("RENDER_GIT_COMMIT", "development")[:12]
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers.setdefault("Referrer-Policy", "same-origin")
     response.headers["X-Frame-Options"] = "DENY"
@@ -81,8 +92,17 @@ def health(db: Db):
 
 
 @app.get("/", include_in_schema=False)
-def index():
-    return FileResponse(ROOT / "pilot/index.html", headers={"Cache-Control": "no-cache"})
+def index(request: Request):
+    # Только публичные настройки. Проверка входа остаётся на сервере API.
+    bootstrap = json.dumps({
+        "auth": auth.options(),
+        "has_session": len(request.cookies.get(auth.COOKIE, "")) == 43,
+    }).replace("<", "\\u003c")
+    html = (ROOT / "pilot/index.html").read_text(encoding="utf-8").replace(
+        "<!-- APP_BOOTSTRAP -->",
+        f'<script id="app-bootstrap" type="application/json">{bootstrap}</script>',
+    )
+    return HTMLResponse(html, headers={"Cache-Control": "no-store", "Vary": "Cookie"})
 
 
 @app.get("/assets/styles.css", include_in_schema=False)
