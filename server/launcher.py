@@ -4,7 +4,6 @@ import json
 import msvcrt
 import os
 import re
-import secrets
 import shutil
 import socket
 import subprocess
@@ -15,14 +14,14 @@ from contextlib import contextmanager
 from pathlib import Path
 from threading import Event, Thread
 from urllib.error import URLError
-from urllib.request import Request, urlopen
+from urllib.request import urlopen
 from uuid import uuid4
 
 import uvicorn
 from psycopg import Error as DatabaseError
 from psycopg.conninfo import conninfo_to_dict
 
-from .config import ROOT, database_url, share_authorization
+from .config import ROOT, database_url
 from .manage import change_moderator, grant_event_organizer, migrate
 
 RUNTIME = ROOT / ".runtime"
@@ -63,10 +62,9 @@ def site_status():
             return {"url": "", "mode": "starting", "id": ""}
 
 
-def ready(url, password=None):
-    headers = {"Authorization": share_authorization(password)} if password else {}
+def ready(url):
     try:
-        with urlopen(Request(url + "/api/health", headers=headers), timeout=1) as response:
+        with urlopen(url + "/api/health", timeout=1) as response:
             return json.load(response) == {"status": "ok"}
     except (OSError, URLError, ValueError):
         return False
@@ -165,7 +163,6 @@ def serve(mode):
                 return
             public = mode == "public"
             address = local_url
-            password = secrets.token_urlsafe(18) if public else None
             if public:
                 with TUNNEL_LOG.open("w", encoding="utf-8") as log:
                     tunnel = subprocess.Popen([
@@ -175,7 +172,6 @@ def serve(mode):
                 if address is None:
                     return
             os.environ.update(APP_ENV="pilot" if public else "dev", APP_ORIGIN=address,
-                              CAMPUS_SHARE_PASSWORD=password or "",
                               CAMPUS_LOOPBACK_ORIGIN=local_url if public else "")
             server = uvicorn.Server(uvicorn.Config(
                 "server.main:app", host=LOOPBACK, port=port, access_log=False,
@@ -189,7 +185,6 @@ def serve(mode):
                         return
 
             state["url"] = address
-            state["password"] = password
             write_status(state)
             Thread(target=wait_for_stop, daemon=True).start()
             server.run(sockets=[listener])
@@ -218,7 +213,7 @@ def stop():
 def launch(mode):
     state = site_status()
     if state:
-        if state["url"] and ready(state["local_url"], state.get("password")):
+        if state["url"] and ready(state["local_url"]):
             if mode == "public" and state["mode"] != "public":
                 stop()
             else:
@@ -234,7 +229,7 @@ def launch(mode):
     deadline = time.monotonic() + 45
     while time.monotonic() < deadline and process.poll() is None:
         state = site_status()
-        if state and state["url"] and ready(state["local_url"], state.get("password")):
+        if state and state["url"] and ready(state["local_url"]):
             return state["url"]
         time.sleep(0.25)
     raise LauncherError(f"Сайт не запустился. Журнал: {LOG}")
@@ -272,10 +267,8 @@ def menu():
         state = site_status()
         print("\nCampus Threads")
         print((state["url"] or "Сайт запускается…") if state else "Сайт остановлен.")
-        if state and state.get("password"):
+        if state and state["mode"] == "public":
             print("На этом ПК:", state["local_url"])
-            print("Логин для ссылки: campus")
-            print("Пароль для ссылки:", state["password"])
         print("1. Открыть сайт или запустить локально")
         print("2. Получить временную ссылку для других устройств")
         print("3. Перезапустить и применить изменения")

@@ -1,15 +1,15 @@
 from contextlib import asynccontextmanager
-from hmac import compare_digest
 
+from anyio import CapacityLimiter
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from psycopg.errors import ForeignKeyViolation
 from psycopg_pool import PoolTimeout
 
 from . import auth, events, microsoft, social
-from .config import ROOT, settings, share_authorization
+from .config import ROOT, settings
 from .db import Db, MIGRATION_VERSION, make_pool
 
 
@@ -27,6 +27,7 @@ async def lifespan(app):
             if versions != set(range(1, MIGRATION_VERSION + 1)):
                 raise RuntimeError("Версия базы не совпадает с версией приложения.")
         app.state.pool = pool
+        app.state.connection_limiter = CapacityLimiter(pool.max_size)
         yield
 
 
@@ -40,15 +41,6 @@ app.include_router(events.router)
 @app.middleware("http")
 async def browser_policy(request: Request, call_next):
     config = settings()
-    if config.share_password:
-        expected = share_authorization(config.share_password).encode("ascii")
-        supplied = request.headers.get("authorization", "").encode("latin-1")
-        if not compare_digest(supplied, expected):
-            return PlainTextResponse(
-                "Временная ссылка Campus Threads. Введите логин campus и пароль от организатора.",
-                status_code=401,
-                headers={"WWW-Authenticate": 'Basic realm="Campus Threads"', "Cache-Control": "no-store"},
-            )
     api = request.url.path.startswith("/api/")
     if api and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
         origins = {config.origin}
@@ -57,7 +49,7 @@ async def browser_policy(request: Request, call_next):
         if request.headers.get("origin") not in origins:
             return JSONResponse({"detail": "Откройте приложение по его основному адресу."}, status_code=403)
     response = await call_next(request)
-    if api:
+    if api or request.url.path.startswith("/assets/"):
         response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers.setdefault("Referrer-Policy", "same-origin")

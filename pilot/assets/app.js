@@ -1,4 +1,4 @@
-import { $, esc, icon, toast } from './ui.js';
+import { $, avatar, esc, icon, toast } from './ui.js';
 import { createViews } from './views.js';
 
 const screen = $('#screen');
@@ -47,6 +47,13 @@ const navigation = [
   ['feed', 'home', 'Лента'], ['search', 'search', 'Поиск'], ['compose', 'plus', 'Новый тред'],
   ['communities', 'people', 'Сообщества'], ['events', 'calendar', 'Мероприятия'], ['profile', 'user', 'Профиль'],
 ];
+const titles = {
+  login: 'Добро пожаловать', register: 'Создать аккаунт', verify: 'Подтверждение почты',
+  microsoftProfile: 'Твой профиль', feed: 'Лента кампуса', search: 'Поиск',
+  compose: 'Новый тред', communities: 'Сообщества', community: 'Сообщество',
+  profile: 'Профиль', events: 'Мероприятия', createCommunity: 'Новое сообщество',
+  createEvent: 'Новое мероприятие',
+};
 $('#navigation').innerHTML = navigation.map(([name, symbol, label]) =>
   `<button data-act="nav" data-go="${name}" aria-label="${label}">${icon(symbol)}<span>${label}</span></button>`).join('');
 
@@ -55,7 +62,10 @@ async function render() {
   const v = app.view;
   displayedView = null;
   $('#phone').classList.toggle('authed', Boolean(app.me));
-  $('#whoami').textContent = app.me ? '@' + app.me.username : '';
+  document.body.classList.toggle('authed', Boolean(app.me));
+  $('#pageTitle').textContent = titles[v.name] || 'Campus Threads';
+  $('#sidebarAccount').innerHTML = app.me ? `<button data-act="profile" data-id="${app.me.user_id}">
+    ${avatar(app.me.full_name, app.me.user_id, 36)}<span><b>${esc(app.me.full_name)}</b><small>@${esc(app.me.username)}</small></span></button>` : '';
   for (const button of $('#navigation').querySelectorAll('button')) {
     const current = button.dataset.go === v.name;
     button.classList.toggle('on', current);
@@ -66,7 +76,7 @@ async function render() {
     const html = await views[v.name](v);
     if (version !== renderVersion) return;
     screen.innerHTML = html;
-    screen.scrollTop = v.scroll || 0;
+    window.scrollTo({ top: v.scroll || 0, behavior: 'instant' });
     displayedView = v;
   } catch (error) {
     if (version !== renderVersion) return;
@@ -76,6 +86,31 @@ async function render() {
       return;
     }
     screen.innerHTML = `<div class="empty" role="alert">${esc(error.message)}<br><button class="link" data-act="retry">Повторить</button></div>`;
+  }
+}
+
+let contextRunning = false;
+async function refreshContext() {
+  if (!app.me || document.hidden || contextRunning) return;
+  const userId = app.me.user_id;
+  contextRunning = true;
+  try {
+    const [events, communities] = await Promise.all([
+      api('/events', { query: { page_size: 3 } }),
+      api('/communities', { query: { joined: true } }),
+    ]);
+    if (app.me?.user_id !== userId) return;
+    $('#upcomingEvents').innerHTML = events.map(event => `<button class="context-event" data-act="go" data-go="events">
+      <strong>${esc(event.title)}</strong><small>${esc(new Date(event.starts_at).toLocaleString('ru-RU', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty',
+      }))} · ${esc(event.venue)}</small></button>`).join('') || '<p class="context-empty">Здесь появятся предстоящие мероприятия университета.</p>';
+    $('#myCommunities').innerHTML = communities.slice(0, 5).map(c => `<button class="context-community" data-act="community" data-id="${c.community_id}">
+      <span class="comm-ico" style="--h:250">${esc(c.name[0])}</span>${esc(c.name)}</button>`).join('') ||
+      '<p class="context-empty">Найди свой клуб или создай сообщество.</p><button class="link" data-act="go" data-go="communities">Открыть сообщества</button>';
+  } catch {
+    $('#upcomingEvents').innerHTML = '<p class="context-empty">Афиша временно недоступна.</p>';
+  } finally {
+    contextRunning = false;
   }
 }
 
@@ -95,12 +130,12 @@ async function refreshLive() {
 
     const template = document.createElement('template');
     template.innerHTML = html;
-    const scroll = screen.scrollTop;
+    const scroll = window.scrollY;
     for (const region of screen.querySelectorAll('[data-live]')) {
       const next = template.content.querySelector(`[data-live="${region.dataset.live}"]`);
       if (next && region.innerHTML !== next.innerHTML) region.replaceChildren(...next.childNodes);
     }
-    screen.scrollTop = scroll;
+    window.scrollTo({ top: scroll, behavior: 'instant' });
   } catch (error) {
     if (stillCurrent() && error.status === 401) await startSession(null);
     if (stillCurrent() && error.status === 404) await render();
@@ -110,7 +145,7 @@ async function refreshLive() {
 }
 
 function go(name, params = {}, push = true) {
-  if (push) app.history.push({ ...app.view, scroll: screen.scrollTop });
+  if (push) app.history.push({ ...app.view, scroll: window.scrollY });
   app.view = { name, ...params };
   return render();
 }
@@ -121,13 +156,14 @@ function back() {
 }
 
 function refresh() {
-  app.view.scroll = screen.scrollTop;
+  app.view.scroll = window.scrollY;
   return render();
 }
 
 function startSession(user) {
   app.me = user;
   app.history = [];
+  if (user) refreshContext();
   return go(user ? 'feed' : 'login', {}, false);
 }
 
@@ -181,6 +217,9 @@ const actions = {
     el.dataset.liked = String(liked);
     el.classList.toggle('on', liked);
     el.querySelector('span').textContent = like_count;
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
   },
   async follow(el) {
     await toggle(`/users/${el.dataset.id}/follow`, el.dataset.on !== 'true');
@@ -189,6 +228,7 @@ const actions = {
   async join(el) {
     await toggle(`/communities/${el.dataset.id}/membership`, el.dataset.on !== 'true');
     await refresh();
+    refreshContext();
   },
   async delete(el) {
     if (!confirm('Удалить публикацию вместе с её ответами и лайками?')) return;
@@ -243,11 +283,13 @@ const forms = {
     const community = await send('/communities', data);
     await go('community', { id: community.community_id }, false);
     toast('Сообщество создано.');
+    refreshContext();
   },
   async createEvent(data) {
     await send('/events', { ...data, capacity: Number(data.capacity) });
     await back();
     toast('Мероприятие опубликовано.');
+    refreshContext();
   },
   async compose(data) {
     const post = await send('/posts', {
@@ -293,6 +335,7 @@ document.addEventListener('submit', event => {
   const button = form.querySelector('[type=submit]');
   if (button?.disabled) return;
   const data = Object.fromEntries(new FormData(form));
+  if (form.dataset.form === 'search') document.activeElement?.blur();
   run(button, () => forms[form.dataset.form](data, form));
 });
 
@@ -302,7 +345,9 @@ screen.addEventListener('input', event => {
   }
 });
 setInterval(refreshLive, 4000);
+setInterval(refreshContext, 30000);
 document.addEventListener('visibilitychange', refreshLive);
+document.addEventListener('visibilitychange', refreshContext);
 
 const url = new URL(location.href);
 const microsoftResult = url.searchParams.get('microsoft');

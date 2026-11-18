@@ -1,5 +1,5 @@
 {
-  "name": "campus-threads-demo",
+  "name": "campus-threads",
   "version": "1.0.0",
   "private": true,
   "description": "Campus Threads — соцсеть KBTU и отдельное учебное демо PGlite",
@@ -8,6 +8,8 @@
     "start": "python -m uvicorn server.main:app",
     "demo": "python serve.py",
     "test:demo": "node tests/smoke.mjs",
+    "test:front": "node tests/front/run.mjs",
+    "test:load": "python tests/load.py",
     "update-vendor": "node tests/update-vendor.mjs"
   },
   "devDependencies": {

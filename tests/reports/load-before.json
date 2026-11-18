@@ -1,0 +1,8 @@
+{
+  "environment": "Local Windows HTTP server and PostgreSQL",
+  "note": "Before isolating pool acquisition from FastAPI handler threads. The 100-user stage was interrupted after reproducing starvation at 50 users.",
+  "results": [
+    {"concurrent_users": 20, "requests": 240, "duration_seconds": 1.62, "requests_per_second": 148.16, "errors": 0, "p95_ms": 94.1},
+    {"concurrent_users": 50, "requests": 600, "duration_seconds": 9.71, "requests_per_second": 61.78, "errors": 36, "p95_ms": 5107.0}
+  ]
+}

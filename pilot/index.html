@@ -3,23 +3,56 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
   <title>Campus Threads · KBTU</title>
-  <meta name="description" content="Соцсеть KBTU. Треды, сообщества и мероприятия университета.">
+  <meta name="description" content="Обсуждения, сообщества и мероприятия КБТУ.">
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <script src="/assets/theme.js"></script>
   <link rel="stylesheet" href="/assets/styles.css">
   <link rel="stylesheet" href="/assets/pilot.css">
 </head>
 <body>
-  <header class="site-head">
-    <div class="sh-brand"><span class="logo-mark sm">ct</span><div><b>Campus Threads</b><small>Соцсеть KBTU</small></div></div>
-    <div class="sh-right"><span id="whoami"></span><span class="pilot-badge">Пилот</span></div>
-  </header>
-  <main class="pilot-main">
-    <div class="phone pilot-shell" id="phone">
-      <div class="screen" id="screen"><p class="empty" role="status">Подключаемся…</p></div>
+  <a class="skip-link" href="#screen">Перейти к содержимому</a>
+  <div class="desktop-layout">
+    <aside class="sidebar">
+      <a class="app-brand" href="/" aria-label="Campus Threads — главная">
+        <span class="logo-mark">ct</span><span>Campus Threads<small>Казахстанско-Британский<br>технический университет</small></span>
+      </a>
       <nav class="tabbar" id="navigation" aria-label="Навигация приложения"></nav>
-    </div>
-  </main>
+      <button class="btn primary sidebar-compose" data-act="go" data-go="compose">Написать тред</button>
+      <div class="sidebar-bottom">
+        <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+          <span aria-hidden="true">◐</span><span id="themeLabel">Тёмная тема</span>
+        </button>
+        <div class="sidebar-account" id="sidebarAccount"></div>
+      </div>
+    </aside>
+    <main class="workspace">
+      <header class="workspace-header">
+        <div><p class="eyebrow">CAMPUS THREADS</p><h1 id="pageTitle">Добро пожаловать</h1></div>
+        <form class="header-search search" data-form="search" id="headerSearch">
+          <input name="term" aria-label="Поиск по кампусу" placeholder="Поиск по кампусу" maxlength="100">
+          <button type="submit" aria-label="Искать">↵</button>
+        </form>
+      </header>
+      <div class="content-layout">
+        <div class="phone" id="phone">
+          <div class="screen" id="screen" tabindex="-1"><p class="empty" role="status">Подключаемся…</p></div>
+        </div>
+        <aside class="context-column" aria-label="В кампусе">
+          <section class="context-section">
+            <div class="context-heading"><h2>Ближайшие события</h2><button class="link" data-act="go" data-go="events">Все события</button></div>
+            <div id="upcomingEvents"><p class="context-empty">Загружаем афишу…</p></div>
+          </section>
+          <section class="context-section">
+            <h2>Твои сообщества</h2>
+            <div id="myCommunities"></div>
+          </section>
+          <p class="context-footer">Campus Threads · КБТУ</p>
+        </aside>
+      </div>
+    </main>
+  </div>
   <script type="module" src="/assets/app.js"></script>
 </body>
 </html>

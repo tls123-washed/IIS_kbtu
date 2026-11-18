@@ -1,0 +1,105 @@
+{
+  "testedAt": "2026-11-18T14:36:38.613Z",
+  "tests": [
+    {
+      "name": "01 · Сайт открывается без общего пароля",
+      "passed": true,
+      "milliseconds": 324
+    },
+    {
+      "name": "02 · Вход по имени пользователя и паролю",
+      "passed": true,
+      "milliseconds": 448
+    },
+    {
+      "name": "03 · Сессия сохраняется после обновления страницы",
+      "passed": true,
+      "milliseconds": 290
+    },
+    {
+      "name": "04 · Выход закрывает сессию",
+      "passed": true,
+      "milliseconds": 579
+    },
+    {
+      "name": "05 · Регистрация с адресом КБТУ",
+      "passed": true,
+      "milliseconds": 615
+    },
+    {
+      "name": "06 · Другой почтовый домен отклоняется",
+      "passed": true,
+      "milliseconds": 307
+    },
+    {
+      "name": "07 · Тёмная тема переключается и сохраняется",
+      "passed": true,
+      "milliseconds": 340
+    },
+    {
+      "name": "08 · Десктоп использует боковую навигацию и широкую ленту",
+      "passed": true,
+      "milliseconds": 269
+    },
+    {
+      "name": "09 · Мобильный экран помещается в 390 пикселей",
+      "passed": true,
+      "milliseconds": 226
+    },
+    {
+      "name": "10 · Нажатие анимируется, reduced motion учитывается",
+      "passed": true,
+      "milliseconds": 292
+    },
+    {
+      "name": "11 · Публикация нового треда",
+      "passed": true,
+      "milliseconds": 317
+    },
+    {
+      "name": "12 · Лайк добавляется и убирается",
+      "passed": true,
+      "milliseconds": 375
+    },
+    {
+      "name": "13 · Ответ сохраняется в треде",
+      "passed": true,
+      "milliseconds": 376
+    },
+    {
+      "name": "14 · Анонимная публикация скрывает автора",
+      "passed": true,
+      "milliseconds": 343
+    },
+    {
+      "name": "15 · Удаление своей публикации",
+      "passed": true,
+      "milliseconds": 358
+    },
+    {
+      "name": "16 · Поиск из десктопной шапки",
+      "passed": true,
+      "milliseconds": 295
+    },
+    {
+      "name": "17 · Создание сообщества и вступление",
+      "passed": true,
+      "milliseconds": 398
+    },
+    {
+      "name": "18 · Организатор публикует мероприятие",
+      "passed": true,
+      "milliseconds": 353
+    },
+    {
+      "name": "19 · Получение бесплатного пропуска",
+      "passed": true,
+      "milliseconds": 310
+    },
+    {
+      "name": "20 · Страницы ленты переходят без дублей",
+      "passed": true,
+      "milliseconds": 291
+    }
+  ]
+}

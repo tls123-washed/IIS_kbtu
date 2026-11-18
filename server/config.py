@@ -1,4 +1,3 @@
-import base64
 import os
 import re
 from dataclasses import dataclass
@@ -19,11 +18,6 @@ def database_url():
     if not url:
         raise RuntimeError("Укажите DATABASE_URL в .env")
     return url
-
-
-def share_authorization(password):
-    credentials = base64.b64encode(f"campus:{password}".encode()).decode("ascii")
-    return f"Basic {credentials}"
 
 
 @dataclass(frozen=True)
@@ -70,7 +64,6 @@ class Settings:
     code_signup: bool
     domain_signup: bool
     microsoft: MicrosoftLogin | None
-    share_password: str | None
     loopback_origin: str | None
 
 
@@ -80,7 +73,7 @@ def settings():
     if environment not in ("dev", "pilot"):
         raise RuntimeError("APP_ENV: dev или pilot")
     pilot = environment == "pilot"
-    origin = os.getenv("APP_ORIGIN", "").rstrip("/")
+    origin = (os.getenv("APP_ORIGIN") or os.getenv("RENDER_EXTERNAL_URL", "")).rstrip("/")
     parsed = urlsplit(origin)
     if (parsed.scheme not in ("http", "https") or not parsed.hostname or
             parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment):
@@ -89,16 +82,13 @@ def settings():
         raise RuntimeError("В режиме pilot нужен HTTPS в APP_ORIGIN")
     if not pilot and parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
         raise RuntimeError("Режим dev предназначен для локального адреса")
-    share_password = os.getenv("CAMPUS_SHARE_PASSWORD") or None
-    if share_password and not pilot:
-        raise RuntimeError("Для временной ссылки с паролем нужен режим pilot и HTTPS.")
     loopback_origin = os.getenv("CAMPUS_LOOPBACK_ORIGIN") or None
-    if loopback_origin and (not share_password or not re.fullmatch(r"http://127[.]0[.]0[.]1:[0-9]+", loopback_origin)):
+    if loopback_origin and not re.fullmatch(r"http://127[.]0[.]0[.]1:[0-9]+", loopback_origin):
         raise RuntimeError("CAMPUS_LOOPBACK_ORIGIN должен быть адресом 127.0.0.1 с портом.")
     secret = os.getenv("APP_SECRET", "")
     if len(secret) < 32:
         raise RuntimeError("Создайте APP_SECRET командой python -c из README")
-    auth_mode = os.getenv("AUTH_MODE", "code")
+    auth_mode = os.getenv("AUTH_MODE", "domain")
     if auth_mode not in ("code", "domain", "microsoft", "both"):
         raise RuntimeError("AUTH_MODE: code, domain, microsoft или both.")
     microsoft = None
@@ -131,4 +121,4 @@ def settings():
     port = int(os.getenv("SMTP_PORT", "465" if security == "ssl" else "587")) if smtp_enabled else 587
     return Settings(origin, pilot, secret.encode(), mode, host,
                     port, security, username, password, sender, graph,
-                    code_signup, domain_signup, microsoft, share_password, loopback_origin)
+                    code_signup, domain_signup, microsoft, loopback_origin)

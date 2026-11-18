@@ -1,0 +1,74 @@
+{
+  "tested_at": "2026-11-18T14:22:48.850087+00:00",
+  "environment": "Local Windows HTTP server and PostgreSQL, not Render/Neon",
+  "cpu": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+  "logical_cpus": 12,
+  "python": "3.12.14",
+  "pool_max_connections": 8,
+  "seed_posts": 35,
+  "actions_per_user": 12,
+  "think_time_ms": 100,
+  "notes": "Authenticated feed/search/like/reply workload. Registration and bcrypt login are outside this measurement.",
+  "results": [
+    {
+      "concurrent_users": 20,
+      "requests": 240,
+      "duration_seconds": 1.65,
+      "requests_per_second": 145.34,
+      "errors": 0,
+      "p50_ms": 27.3,
+      "p95_ms": 82.9,
+      "max_ms": 115.2,
+      "statuses": {
+        "200": 200,
+        "201": 40
+      },
+      "operations": {
+        "feed": 120,
+        "like": 40,
+        "search": 40,
+        "reply": 40
+      }
+    },
+    {
+      "concurrent_users": 50,
+      "requests": 600,
+      "duration_seconds": 3.53,
+      "requests_per_second": 169.94,
+      "errors": 0,
+      "p50_ms": 122.4,
+      "p95_ms": 395.4,
+      "max_ms": 1398.4,
+      "statuses": {
+        "200": 500,
+        "201": 100
+      },
+      "operations": {
+        "feed": 300,
+        "like": 100,
+        "search": 100,
+        "reply": 100
+      }
+    },
+    {
+      "concurrent_users": 100,
+      "requests": 1200,
+      "duration_seconds": 8.4,
+      "requests_per_second": 142.92,
+      "errors": 0,
+      "p50_ms": 295.1,
+      "p95_ms": 1793.8,
+      "max_ms": 5155.0,
+      "statuses": {
+        "200": 1000,
+        "201": 200
+      },
+      "operations": {
+        "feed": 600,
+        "like": 200,
+        "search": 200,
+        "reply": 200
+      }
+    }
+  ]
+}

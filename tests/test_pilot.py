@@ -33,7 +33,7 @@ class PilotTest(unittest.TestCase):
             raise RuntimeError("Укажите TEST_DATABASE_URL с именем базы, оканчивающимся на _test.")
         cls.env = patch.dict(os.environ, DATABASE_URL=cls.url, APP_ENV="dev", APP_ORIGIN=ORIGIN,
                              APP_SECRET="integration-test-secret-local-only", MAIL_MODE="file", AUTH_MODE="code",
-                             CAMPUS_SHARE_PASSWORD="", CAMPUS_LOOPBACK_ORIGIN="")
+                             CAMPUS_LOOPBACK_ORIGIN="")
         cls.env.start()
         cls.addClassCleanup(cls.env.stop)
         settings.cache_clear()
@@ -171,18 +171,16 @@ class PilotTest(unittest.TestCase):
         self.assertEqual(confirmed.json()["user_id"], user_id)
         self.assertEqual(client.get("/api/auth/me").status_code, 200)
 
-    def test_temporary_link_requires_its_password(self):
+    def test_site_opens_without_a_gateway_password(self):
         self.addCleanup(settings.cache_clear)
         with patch.dict(os.environ, APP_ENV="pilot", APP_ORIGIN="https://example.test",
                         AUTH_MODE="domain", CAMPUS_SHARE_PASSWORD="example-only-share-password"):
             settings.cache_clear()
             for path in ("/", "/assets/app.js", "/api/health", "/api/auth/options"):
                 response = self.client.get(path)
-                self.assertEqual(response.status_code, 401)
-                self.assertIn("Basic", response.headers["WWW-Authenticate"])
-            self.assertEqual(self.client.get("/api/health", auth=("campus", "wrong")).status_code, 401)
-            result = self.client.get("/api/health", auth=("campus", "example-only-share-password"))
-            self.assertEqual(result.json(), {"status": "ok"})
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn("WWW-Authenticate", response.headers)
+            self.assertEqual(self.client.get("/api/feed").status_code, 401)
 
     def test_registration_and_session(self):
         client = self.client

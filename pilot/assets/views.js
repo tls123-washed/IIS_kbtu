@@ -111,7 +111,6 @@ export function createViews(api, app) {
       const empty = v.cursor ? 'На этой странице пока нет тредов.' :
         tab === 'all' ? 'Лента пока пуста. Опубликуйте первый тред.' : 'Здесь появятся треды тех, на кого вы подписаны.';
       return `
-      <div class="topbar"><span class="logo-mark sm">ct</span><span class="top-title">Campus Threads</span></div>
       <div class="seg" role="tablist">
         <button class="${tab === 'all' ? 'on' : ''}" data-act="feedtab" data-tab="all">Для вас</button>
         <button class="${tab === 'follow' ? 'on' : ''}" data-act="feedtab" data-tab="follow">Подписки</button>
