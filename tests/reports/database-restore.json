@@ -1,0 +1,21 @@
+{
+  "tested_at": "2026-11-18T17:11:09.214486+00:00",
+  "schema_version": 8,
+  "restored_to_empty_database": true,
+  "tables": 24,
+  "api_routines": 40,
+  "faculties": 6,
+  "users": 0,
+  "migration_versions": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "api_tests_passed": true,
+  "api_tests_run": 11
+}
