@@ -20,8 +20,8 @@
 | Когда можно записаться и как считается остаток мест | [events.sql](server/sql/events.sql), функции `events_page` и `issue_ticket` | Список мероприятий и результат регистрации. Первая функция читает афишу, вторая выдаёт билет. |
 | Как работает поиск, профиль и подписка | [people.sql](server/sql/people.sql) | Результаты поиска, данные профиля или поведение подписки. |
 | Сколько записей видно на странице | [pagination.py](server/pagination.py), значение `Query(30, ge=1, le=50)` | Меняется размер страницы ленты и афиши. После правки перезапусти Python. |
-| Правила хранения сессий, проверки кода и попыток | [accounts.sql](server/sql/accounts.sql) и [auth.py](server/auth.py) | PostgreSQL хранит записи и счётчики. Python создаёт коды, проверяет хеши и выдаёт cookie. |
-| Регистрация по адресу @kbtu.kz без письма | `AUTH_MODE=domain` в `.env`, [domain_registration.sql](server/sql/domain_registration.sql) | Прямая регистрация для пилота. Почту можно подтвердить позже, сохранив профиль. |
+| Правила хранения сессий и лимиты попыток входа | [accounts.sql](server/sql/accounts.sql) и [auth.py](server/auth.py) | PostgreSQL хранит хеши токенов и счётчики. Python проверяет пароль и выдаёт cookie. Ранние функции писем удаляет миграция 8. |
+| Регистрация по адресу @kbtu.kz и паролю | `AUTH_MODE=domain` в `.env`, [domain_registration.sql](server/sql/domain_registration.sql) | Аккаунт создаётся одной формой, без письма и кода. |
 | Вход через корпоративный Microsoft | [microsoft.py](server/microsoft.py) и [microsoft.sql](server/sql/microsoft.sql) | Python проверяет ответ Microsoft, PostgreSQL связывает аккаунт КБТУ с профилем. |
 
 ## Как связаны четыре части
@@ -53,7 +53,7 @@ flowchart LR
    FROM campus_api.feed_page(1, FALSE, 3);
    ```
 
-   Если база ещё пуста, создай аккаунт и опубликуй один тред через приложение, потом повтори запрос. Версия схемы должна включать строку `7`.
+   Если база ещё пуста, создай аккаунт и опубликуй один тред через приложение, потом повтори запрос. Версия схемы должна включать строку `8`.
 
 3. Чтобы увидеть **установленный в базе** код, разверни **Schemas → campus_api → Functions**, выбери `feed_page` и открой вкладку **SQL**. Ещё один способ в Query Tool:
 

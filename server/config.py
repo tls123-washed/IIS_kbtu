@@ -21,31 +21,10 @@ def database_url():
 
 
 @dataclass(frozen=True)
-class GraphSettings:
-    tenant_id: str
-    client_id: str
-    sender: str
-    cache_path: Path
-
-
-@dataclass(frozen=True)
 class MicrosoftLogin:
     tenant_id: str
     client_id: str
     client_secret: str
-
-
-def graph_settings():
-    try:
-        tenant = str(UUID(os.getenv("GRAPH_TENANT_ID", "")))
-        client = str(UUID(os.getenv("GRAPH_CLIENT_ID", "")))
-    except ValueError:
-        raise RuntimeError("Укажите Directory (tenant) ID и Application (client) ID из Microsoft Entra.") from None
-    sender = os.getenv("GRAPH_SENDER", "").strip().lower()
-    if not KBTU_EMAIL_PATTERN.fullmatch(sender):
-        raise RuntimeError("Укажите логин корпоративного ящика @kbtu.kz в GRAPH_SENDER.")
-    cache = ROOT / (os.getenv("GRAPH_TOKEN_CACHE") or ".mail-auth/graph.cache")
-    return GraphSettings(tenant, client, sender, cache)
 
 
 @dataclass(frozen=True)
@@ -53,15 +32,6 @@ class Settings:
     origin: str
     secure_cookie: bool
     secret: bytes
-    mail_mode: str
-    smtp_host: str
-    smtp_port: int
-    smtp_security: str
-    smtp_user: str
-    smtp_password: str
-    smtp_from: str
-    graph: GraphSettings | None
-    code_signup: bool
     domain_signup: bool
     microsoft: MicrosoftLogin | None
     loopback_origin: str | None
@@ -89,10 +59,13 @@ def settings():
     if len(secret) < 32:
         raise RuntimeError("Создайте APP_SECRET командой python -c из README")
     auth_mode = os.getenv("AUTH_MODE", "domain")
-    if auth_mode not in ("code", "domain", "microsoft", "both"):
-        raise RuntimeError("AUTH_MODE: code, domain, microsoft или both.")
+    # Старые значения не могут вернуть удалённую регистрацию по письму.
+    if auth_mode in ("code", "both"):
+        auth_mode = "domain"
+    if auth_mode not in ("domain", "microsoft"):
+        raise RuntimeError("AUTH_MODE: domain или microsoft.")
     microsoft = None
-    if auth_mode in ("microsoft", "both"):
+    if auth_mode == "microsoft":
         try:
             tenant_id = str(UUID(os.getenv("MS_LOGIN_TENANT_ID", "")))
             client_id = str(UUID(os.getenv("MS_LOGIN_CLIENT_ID", "")))
@@ -102,23 +75,5 @@ def settings():
         if not client_secret:
             raise RuntimeError("Укажите значение секрета веб-приложения в MS_LOGIN_CLIENT_SECRET.")
         microsoft = MicrosoftLogin(tenant_id, client_id, client_secret)
-    code_signup = auth_mode in ("code", "both")
     domain_signup = auth_mode == "domain"
-    mode = os.getenv("MAIL_MODE", "smtp" if pilot else "file")
-    security = os.getenv("SMTP_SECURITY", "starttls")
-    if code_signup and (mode not in ("file", "smtp", "graph") or (pilot and mode == "file")):
-        raise RuntimeError("MAIL_MODE: file, smtp или graph. Для pilot выберите smtp или graph.")
-    graph = graph_settings() if code_signup and mode == "graph" else None
-    smtp_enabled = code_signup and mode == "smtp"
-    if smtp_enabled and security not in ("starttls", "ssl"):
-        raise RuntimeError("SMTP_SECURITY: starttls или ssl")
-    host = os.getenv("SMTP_HOST", "")
-    sender = os.getenv("SMTP_FROM", "")
-    username = os.getenv("SMTP_USER", "")
-    password = os.getenv("SMTP_PASSWORD", "")
-    if smtp_enabled and (not host or not sender or bool(username) != bool(password)):
-        raise RuntimeError("Заполните SMTP_HOST, SMTP_FROM и данные входа при необходимости")
-    port = int(os.getenv("SMTP_PORT", "465" if security == "ssl" else "587")) if smtp_enabled else 587
-    return Settings(origin, pilot, secret.encode(), mode, host,
-                    port, security, username, password, sender, graph,
-                    code_signup, domain_signup, microsoft, loopback_origin)
+    return Settings(origin, pilot, secret.encode(), domain_signup, microsoft, loopback_origin)

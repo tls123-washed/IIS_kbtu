@@ -12,7 +12,7 @@ END
 $$;
 TRUNCATE users, students, teachers, mentors, moderators, scholarship_holders,
     communities, community_members, posts, likes, follows, attachments,
-    hashtags, post_hashtags, email_codes, sessions, auth_limits, events, event_tickets,
+    hashtags, post_hashtags, sessions, auth_limits, events, event_tickets,
     microsoft_flows, microsoft_pending, microsoft_identities, event_organizers
 RESTART IDENTITY;
 COMMIT;

@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 from psycopg.conninfo import conninfo_to_dict
 
 from server.config import settings
-from server.mail import MailDeliveryError
 from server.main import app
 from server.manage import migrate
 
@@ -21,7 +20,7 @@ PASSWORD = "test-campus-password"
 TEST_DATA = """
     TRUNCATE users, students, teachers, mentors, moderators, scholarship_holders,
         communities, community_members, posts, likes, follows, attachments,
-        hashtags, post_hashtags, email_codes, sessions, auth_limits, events, event_tickets,
+        hashtags, post_hashtags, sessions, auth_limits, events, event_tickets,
         microsoft_flows, microsoft_pending, microsoft_identities, event_organizers
     RESTART IDENTITY
 """
@@ -34,7 +33,7 @@ class PilotTest(unittest.TestCase):
         if not cls.url or not conninfo_to_dict(cls.url).get("dbname", "").endswith("_test"):
             raise RuntimeError("Укажите TEST_DATABASE_URL с именем базы, оканчивающимся на _test.")
         cls.env = patch.dict(os.environ, DATABASE_URL=cls.url, APP_ENV="dev", APP_ORIGIN=ORIGIN,
-                             APP_SECRET="integration-test-secret-local-only", MAIL_MODE="file", AUTH_MODE="code",
+                             APP_SECRET="integration-test-secret-local-only", AUTH_MODE="domain",
                              CAMPUS_LOOPBACK_ORIGIN="")
         cls.env.start()
         cls.addClassCleanup(cls.env.stop)
@@ -50,18 +49,13 @@ class PilotTest(unittest.TestCase):
         self.addCleanup(self.clear)
         self.client = TestClient(app, base_url=ORIGIN, headers={"Origin": ORIGIN})
         self.enterContext(self.client)
-        self.mail = {}
-        self.enterContext(patch("server.auth.send_code", side_effect=self.mail.__setitem__))
 
     def clear(self):
         with psycopg.connect(self.url) as db:
             db.execute(TEST_DATA)
 
     def registration(self, client, name):
-        email = f"{name}@kbtu.kz"
-        response = client.post("/api/auth/code", json={"email": email.upper()})
-        self.assertEqual(response.status_code, 204, response.text)
-        return {"email": email, "code": self.mail[email], "username": name,
+        return {"email": f"{name}@kbtu.kz", "username": name,
                 "password": PASSWORD, "first": "Тест", "last": name,
                 "faculty": client.get("/api/auth/faculties").json()[0]["faculty_id"], "year": 1}
 
@@ -96,7 +90,7 @@ class PilotTest(unittest.TestCase):
         exchange = self.microsoft("student@kbtu.kz")
         client = self.client
         self.assertEqual(client.get("/api/auth/options").json(),
-                         {"microsoft": True, "code_signup": False, "domain_signup": False, "local_mail": False})
+                         {"microsoft": True, "domain_signup": False})
         self.assertEqual(client.post("/api/auth/code", json={"email": "student@kbtu.kz"}).status_code, 404)
         self.assertEqual(self.microsoft_callback(), "/?microsoft=failed")
         self.microsoft_start()
@@ -121,6 +115,9 @@ class PilotTest(unittest.TestCase):
 
     def test_microsoft_guest_and_explicit_link(self):
         user_id = self.register(self.client, "existing")
+        # Ранее подтверждённый аккаунт сохраняет возможность привязать Microsoft.
+        with psycopg.connect(self.url) as db:
+            db.execute("UPDATE users SET email_verified_at = now() WHERE user_id = %s", (user_id,))
         self.client.post("/api/auth/logout")
         exchange = self.microsoft("existing@kbtu.kz")
         self.microsoft_start()
@@ -138,40 +135,27 @@ class PilotTest(unittest.TestCase):
         self.assertEqual(self.microsoft_callback(), "/?microsoft=signed_in")
         self.assertEqual(self.client.get("/api/auth/me").json()["user_id"], user_id)
 
-    def test_domain_registration_and_later_confirmation(self):
+    def test_email_codes_are_removed_even_with_legacy_configuration(self):
         self.addCleanup(settings.cache_clear)
         client = self.client
-        login = {"username": "pilot_student", "password": PASSWORD}
-        data = {**login, "first": "Студент", "last": "КБТУ",
-                "faculty": client.get("/api/auth/faculties").json()[0]["faculty_id"], "year": 1}
-        self.assertEqual(client.post("/api/auth/register-domain", json={**data, "email": "pilot@kbtu.kz"}).status_code, 404)
-        with patch.dict(os.environ, AUTH_MODE="domain", MAIL_MODE="smtp", SMTP_PORT="invalid-unused-port"):
-            settings.cache_clear()
-            self.assertTrue(client.get("/api/auth/options").json()["domain_signup"])
-            for address in ("pilot@gmail.com", "pilot@kbtu.kz.example", "pilot@other.kbtu.kz"):
-                self.assertEqual(client.post("/api/auth/register-domain", json={**data, "email": address}).status_code, 422)
-            self.assertEqual(client.post("/api/auth/code", json={"email": "pilot@kbtu.kz"}).status_code, 404)
-            created = client.post("/api/auth/register-domain", json={**data, "email": "Pilot@KBTU.KZ"})
-            self.assertEqual(created.status_code, 201, created.text)
-            user_id = created.json()["user_id"]
-            self.assertEqual(client.get("/api/auth/me").json()["user_id"], user_id)
-            self.assertEqual(client.post("/api/auth/register-domain", json={**data, "email": "pilot@kbtu.kz"}).status_code, 409)
-            self.assertEqual(self.mail, {})
-            with psycopg.connect(self.url) as db:
-                self.assertEqual(db.execute("SELECT email, email_verified_at FROM users WHERE user_id = %s",
-                                            (user_id,)).fetchone(), ("pilot@kbtu.kz", None))
-            client.post("/api/auth/logout")
-            self.assertEqual(client.post("/api/auth/login", json=login).status_code, 200)
+        for mode in ("domain", "code", "both"):
+            with patch.dict(os.environ, AUTH_MODE=mode, MAIL_MODE="invalid-unused", SMTP_PORT="unused"):
+                settings.cache_clear()
+                options = client.get("/api/auth/options").json()
+                self.assertTrue(options["domain_signup"])
+                self.assertNotIn("code_signup", options)
+                self.assertNotIn("local_mail", options)
+                self.assertEqual(client.post("/api/auth/code", json={"email": "pilot@kbtu.kz"}).status_code, 404)
         settings.cache_clear()
-        self.assertEqual(client.get("/api/auth/me").status_code, 401)
-        self.assertEqual(client.post("/api/auth/login", json=login).status_code, 401)
-        client.post("/api/auth/logout")
-        proof = {**self.registration(client, "pilot"), **login}
-        self.assertEqual(client.post("/api/auth/register", json={**proof, "password": "wrong-password"}).status_code, 400)
-        confirmed = client.post("/api/auth/register", json=proof)
-        self.assertEqual(confirmed.status_code, 201, confirmed.text)
-        self.assertEqual(confirmed.json()["user_id"], user_id)
-        self.assertEqual(client.get("/api/auth/me").status_code, 200)
+        self.assertNotIn("/api/auth/code", client.get("/openapi.json").json()["paths"])
+        with psycopg.connect(self.url) as db:
+            self.assertIsNone(db.execute("SELECT to_regclass('public.email_codes')").fetchone()[0])
+        data = self.registration(client, "pilot_student")
+        created = client.post("/api/auth/register-domain", json=data)
+        self.assertEqual(created.status_code, 201, created.text)
+        with psycopg.connect(self.url) as db:
+            self.assertEqual(db.execute("SELECT email_verified_at FROM users WHERE user_id = %s",
+                                        (created.json()["user_id"],)).fetchone(), (None,))
 
     def test_site_opens_without_a_gateway_password(self):
         self.addCleanup(settings.cache_clear)
@@ -193,7 +177,7 @@ class PilotTest(unittest.TestCase):
                 r'<script id="app-bootstrap" type="application/json">(.*?)</script>', page.text
             ).group(1))
             self.assertFalse(bootstrap["has_session"])
-            self.assertTrue(bootstrap["auth"]["code_signup"])
+            self.assertTrue(bootstrap["auth"]["domain_signup"])
             self.assertEqual(self.client.get("/api/auth/me").status_code, 401)
             self.assertEqual(page.headers["Cache-Control"], "no-store")
             self.assertIn("Cookie", page.headers["Vary"])
@@ -211,34 +195,36 @@ class PilotTest(unittest.TestCase):
     def test_registration_and_session(self):
         client = self.client
         self.assertEqual(client.get("/api/feed").status_code, 401)
-        self.assertEqual(client.post("/api/auth/code", headers={"Origin": "https://other.example"},
-                                     json={"email": "a@kbtu.kz"}).status_code, 403)
-        self.assertEqual(client.post("/api/auth/code", json={"email": "a@kbtu.kz.example"}).status_code, 422)
-        with patch("server.auth.send_code", side_effect=MailDeliveryError("HTTP 403")):
-            failed = client.post("/api/auth/code", json={"email": "tester@kbtu.kz"})
-        self.assertEqual(failed.status_code, 503)
-        data = self.registration(client, "tester")
-        self.assertEqual(client.post("/api/auth/code", json={"email": data["email"]}).status_code, 429)
-        wrong = "000000" if data["code"] != "000000" else "111111"
-        for _ in range(5):
-            self.assertEqual(client.post("/api/auth/register", json={**data, "code": wrong}).status_code, 400)
-        self.assertEqual(client.post("/api/auth/register", json=data).status_code, 400)
-        expired = self.registration(client, "expired")
-        with psycopg.connect(self.url) as db:
-            db.execute("UPDATE email_codes SET expires_at = now() WHERE email = %s", (expired["email"],))
-        self.assertEqual(client.post("/api/auth/register", json=expired).status_code, 400)
-        data = self.registration(client, "verified")
+        data = self.registration(client, "student")
+        self.assertEqual(client.post("/api/auth/register", headers={"Origin": "https://other.example"},
+                                     json=data).status_code, 403)
         response = client.post("/api/auth/register", json=data)
         self.assertEqual(response.status_code, 201, response.text)
         self.assertIn("HttpOnly", response.headers["Set-Cookie"])
         self.assertNotIn("password_hash", response.json())
         self.assertNotIn("email", response.json())
-        self.assertEqual(client.post("/api/auth/register", json=data).status_code, 400)
-        self.assertEqual(client.get("/api/auth/me").json()["username"], "verified")
+        self.assertEqual(client.post("/api/auth/register", json=data).status_code, 409)
+        self.assertEqual(client.get("/api/auth/me").json()["username"], "student")
         self.assertEqual(client.post("/api/auth/logout").status_code, 204)
         self.assertEqual(client.get("/api/auth/me").status_code, 401)
-        self.assertEqual(client.post("/api/auth/login", json={"username": "verified", "password": "wrong"}).status_code, 401)
-        self.assertEqual(client.post("/api/auth/login", json={"username": "verified", "password": PASSWORD}).status_code, 200)
+        self.assertEqual(client.post("/api/auth/login", json={"username": "student", "password": "wrong"}).status_code, 401)
+        self.assertEqual(client.post("/api/auth/login", json={"username": "student", "password": PASSWORD}).status_code, 200)
+
+    def test_registration_validation_without_a_code(self):
+        client = self.client
+        data = self.registration(client, "validation")
+        for email in ("pilot@gmail.com", "pilot@kbtu.kz.example", "pilot@other.kbtu.kz"):
+            self.assertEqual(client.post("/api/auth/register", json={**data, "email": email}).status_code, 422)
+        self.assertEqual(client.post("/api/auth/register", json={**data, "password": "я" * 37}).status_code, 422)
+        self.assertEqual(client.post("/api/auth/register", json={**data, "faculty": 2147483647}).status_code, 422)
+        self.assertEqual(client.post("/api/auth/register", json={**data, "code": "123456"}).status_code, 422)
+        created = client.post("/api/auth/register", json={**data, "email": "VALIDATION@KBTU.KZ"})
+        self.assertEqual(created.status_code, 201, created.text)
+        with psycopg.connect(self.url) as db:
+            email, password_hash = db.execute("SELECT email, password_hash FROM users WHERE user_id = %s",
+                                             (created.json()["user_id"],)).fetchone()
+        self.assertEqual(email, "validation@kbtu.kz")
+        self.assertNotEqual(password_hash, PASSWORD)
 
     def test_social_and_last_seat(self):
         first = self.client

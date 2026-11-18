@@ -44,8 +44,7 @@ export function createViews(api, app) {
           <label>Пароль<input name="password" type="password" autocomplete="current-password" maxlength="72" required></label>
           <button class="btn ${app.auth.microsoft ? '' : 'primary'}" type="submit">${app.auth.microsoft ? 'Войти по паролю' : 'Войти'}</button>
         </form>
-        ${app.auth.domain_signup ? '<button class="link" data-act="go" data-go="register">Создать аккаунт</button>' :
-          app.auth.code_signup ? '<button class="link" data-act="go" data-go="register">Создать аккаунт по почте</button>' : ''}
+        ${app.auth.domain_signup ? '<button class="link" data-act="go" data-go="register">Создать аккаунт</button>' : ''}
       </div>`;
     },
 
@@ -62,13 +61,12 @@ export function createViews(api, app) {
       </div>`;
     },
 
-    async register(v) {
-      if (app.auth.domain_signup) {
+    async register() {
         const faculties = await api('/auth/faculties');
         return `
         <div class="auth">
           <div class="brand-big small"><span class="logo-mark">ct</span><h1>Регистрация</h1><p>Укажи свой адрес @kbtu.kz</p></div>
-          <form class="form" data-form="registerDomain">
+          <form class="form" data-form="register">
             <label>Почта KBTU<input name="email" type="email" autocomplete="email" placeholder="name@kbtu.kz" maxlength="100" required></label>
             ${studentFields(faculties)}
             <label>Пароль<input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required></label>
@@ -76,33 +74,6 @@ export function createViews(api, app) {
           </form>
           <button class="link" data-act="go" data-go="login">Уже есть аккаунт? Войти</button>
         </div>`;
-      }
-      return `
-      <div class="auth">
-        <div class="brand-big small"><span class="logo-mark">ct</span><h1>Регистрация</h1><p>Шаг 1 из 2 · Университетская почта</p></div>
-        <form class="form" data-form="code">
-          <label>Почта KBTU<input name="email" type="email" autocomplete="email" value="${esc(v.email)}" placeholder="name@kbtu.kz" maxlength="100" required></label>
-          <button class="btn primary" type="submit">Получить код</button>
-        </form>
-        ${app.auth.local_mail ? '<p>Локальная проверка сохраняет письмо в папку <code>.mailbox</code> проекта.</p>' : ''}
-        <button class="link" data-act="go" data-go="login">Уже есть аккаунт? Войти</button>
-      </div>`;
-    },
-
-    async verify(v) {
-      const faculties = await api('/auth/faculties');
-      return `
-      <div class="auth">
-        <div class="brand-big small"><span class="logo-mark">ct</span><h1>Подтверждение</h1><p>${app.auth.local_mail ? 'Код сохранён в папку .mailbox' : `Шаг 2 из 2 · Код отправлен на ${esc(v.email)}`}</p></div>
-        <form class="form" data-form="register">
-          <label>Код из письма<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
-          ${studentFields(faculties)}
-          <label>Пароль<input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required></label>
-          <button class="btn primary" type="submit">Подтвердить и войти</button>
-        </form>
-        <button class="link" data-act="resend">Отправить новый код</button>
-        <button class="link" data-act="back">Изменить адрес</button>
-      </div>`;
     },
 
     async feed(v) {

@@ -2,8 +2,8 @@ import { $, avatar, esc, icon, toast } from './ui.js';
 import { createViews } from './views.js';
 
 const screen = $('#screen');
-const app = { me: null, view: { name: 'login' }, history: [], auth: { code_signup: true } };
-const authScreens = new Set(['login', 'register', 'verify', 'microsoftProfile']);
+const app = { me: null, view: { name: 'login' }, history: [], auth: {} };
+const authScreens = new Set(['login', 'register', 'microsoftProfile']);
 let renderVersion = 0;
 let displayedView = null;
 let pendingActions = 0;
@@ -61,7 +61,7 @@ const navigation = [
   ['communities', 'people', 'Сообщества'], ['events', 'calendar', 'Мероприятия'], ['profile', 'user', 'Профиль'],
 ];
 const titles = {
-  login: 'Добро пожаловать', register: 'Создать аккаунт', verify: 'Подтверждение почты',
+  login: 'Добро пожаловать', register: 'Создать аккаунт',
   microsoftProfile: 'Твой профиль', feed: 'Лента кампуса', search: 'Поиск',
   compose: 'Новый тред', communities: 'Сообщества', community: 'Сообщество',
   profile: 'Профиль', events: 'Мероприятия', createCommunity: 'Новое сообщество',
@@ -218,10 +218,6 @@ const actions = {
   community(el) { return go('community', { id: Number(el.dataset.id) }); },
   tag(el) { return go('search', { tag: el.dataset.tag }); },
 
-  async resend() {
-    await send('/auth/code', { email: app.view.email });
-    toast(app.auth.local_mail ? 'Новый код сохранён в .mailbox.' : 'Новый код отправлен.');
-  },
   async logout() {
     await send('/auth/logout');
     await startSession(null);
@@ -266,23 +262,8 @@ const actions = {
 
 const forms = {
   async login(data) { await startSession(await send('/auth/login', data)); },
-  async code(data) {
-    const view = app.view;
-    const email = data.email.trim().toLowerCase();
-    await send('/auth/code', { email });
-    if (app.view === view) {
-      view.email = email;
-      await go('verify', { email });
-    }
-  },
   async register(data) {
     const user = await send('/auth/register', {
-      ...data, email: app.view.email, faculty: Number(data.faculty), year: Number(data.year),
-    });
-    await startSession(user);
-  },
-  async registerDomain(data) {
-    const user = await send('/auth/register-domain', {
       ...data, faculty: Number(data.faculty), year: Number(data.year),
     });
     await startSession(user);

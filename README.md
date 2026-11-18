@@ -47,7 +47,7 @@ Python читает строку `DATABASE_URL` из локального фай
    .\.venv\Scripts\python.exe -m uvicorn server.main:app --host 127.0.0.1 --port 8000
    ```
 
-4. Откройте [локальное приложение](http://127.0.0.1:8000). При `AUTH_MODE=domain` заполните форму с адресом `@kbtu.kz` и нажмите «Создать аккаунт». Если выбраны `AUTH_MODE=code` и `MAIL_MODE=file`, код придёт в файл `.eml` в папке `.mailbox/` в корне проекта.
+4. Откройте [локальное приложение](http://127.0.0.1:8000). Заполните форму с адресом `@kbtu.kz`, данными студента и паролем, затем нажмите «Создать аккаунт». Письмо и код не нужны.
 
 При запуске на другом порту измените `APP_ORIGIN` и введите в браузере тот же адрес. Например, `localhost` и `127.0.0.1` считаются разными источниками. Проверить доступность сервера и базы можно через [ручку health](http://127.0.0.1:8000/api/health). Контракт API доступен в [Swagger UI](http://127.0.0.1:8000/docs).
 
@@ -78,18 +78,13 @@ flowchart LR
 
 **Упражнение.** Ответьте на тред в сообществе. Сравните тело запроса с записью в таблице `posts` и найдите триггер `trg_reply_community` в [SQL-файле](site/sql/03_views_triggers.sql), который заполняет `community_id` ответа.
 
-### 2. Подтвердите почту и изучите сессии
+### 2. Создайте аккаунт и изучите сессии
 
-Маршрут `POST /api/auth/code` проверяет окончание адреса и отправляет шестизначный код. В `email_codes` хранится HMAC кода, срок действия 10 минут и счётчик попыток. После пяти неверных попыток нужен новый код. Повторную отправку можно запросить через минуту.
+Форма отправляет `POST /api/auth/register` с адресом `@kbtu.kz`, именем пользователя, данными студента и паролем. Python проверяет домен и поля, хеширует пароль через bcrypt. SQL-функция `campus_api.create_domain_student` создаёт профиль, а `campus_api.create_session` записывает хеш случайного токена. Изменения сохраняются одной транзакцией. Браузер получает cookie с флагом `HttpOnly`; после перезагрузки `/api/auth/me` восстанавливает вход. Выход удаляет сессию.
 
-В [auth.py](server/auth.py) маршрут `POST /api/auth/register` создаёт записи в `users`, `students` и `sessions` внутри одной транзакции. Браузер получает cookie с флагом `HttpOnly`, а PostgreSQL хранит хеш токена. Запрос `GET /api/auth/me` восстанавливает вход после перезагрузки страницы. Выход удаляет сессию.
+Регистрация по письму удалена. Окончание адреса проверяется, владение почтовым ящиком не подтверждается. В `users` остаются `domain_registration = TRUE` и пустое `email_verified_at`.
 
-**Упражнение.** Введите неверный код и выполните запрос в pgAdmin. Затем введите правильный код и повторите запрос. Объясните, почему строка исчезла.
-
-```sql
-SELECT attempts, expires_at FROM email_codes;
-SELECT user_id, username, email_verified_at FROM users ORDER BY user_id;
-```
+**Упражнение.** Создайте аккаунт, посмотрите `SELECT user_id, username, domain_registration FROM users;`, затем войдите и выйдите. Сравните число строк в `sessions` после этих действий. Пароль и сам токен в запросах не выводите.
 
 ### 3. Создайте сообщество и мероприятие
 
@@ -124,13 +119,11 @@ SELECT (SELECT count(*) FROM users) AS users,
        (SELECT count(*) FROM event_tickets) AS tickets;
 ```
 
-## Временная регистрация без письма
+## Регистрация с почтой и паролем
 
-В локальном `.env` установи `AUTH_MODE=domain`, выполни миграции и перезапусти FastAPI. В этом режиме форма сразу создаёт аккаунт с паролем после проверки адреса `@kbtu.kz`. Правило действует и в Python, и в PostgreSQL. Для таких записей в `users` выставляется `domain_registration = TRUE`, а `email_verified_at` остаётся пустым. Любой участник может ввести чужой адрес, поэтому этот режим подходит для ограниченной пилотной группы.
+По умолчанию используется `AUTH_MODE=domain`. Один экран содержит почту, имя, фамилию, логин, факультет, курс и пароль. Кнопок отправки кода и подтверждения письма больше нет. Старые значения `AUTH_MODE=code` и `AUTH_MODE=both` обрабатываются как `domain`, поэтому старый файл настроек не вернёт удалённую функцию.
 
-Чтобы вернуть письма, настрой SMTP, измени `AUTH_MODE` на `code` и перезапусти FastAPI. Для входа в ранее созданный пилотный профиль пройди «Создать аккаунт по почте» со своим адресом и введи полученный код, прежнее имя пользователя и прежний пароль. После подтверждения откроется тот же профиль с его тредами и билетами. Аккаунты, уже подтвердившие почту, могут сразу войти по паролю.
-
-Код формы находится в [views.js](pilot/assets/views.js), маршрут регистрации в [auth.py](server/auth.py), функции базы в [domain_registration.sql](server/sql/domain_registration.sql).
+Форма находится в [views.js](pilot/assets/views.js), обработчик в [auth.py](server/auth.py), SQL создания профиля в [domain_registration.sql](server/sql/domain_registration.sql). Миграция [08_remove_email_codes.sql](server/schema/08_remove_email_codes.sql) удаляет устаревшие коды и их функции; пользовательские аккаунты, публикации и билеты сохраняются. Ранние миграции остаются историей структуры, последняя миграция приводит её к актуальному состоянию.
 
 ## Вход через Microsoft без письма
 
@@ -156,61 +149,13 @@ SELECT (SELECT count(*) FROM users) AS users,
    .\.venv\Scripts\python.exe -m uvicorn server.main:app --host 127.0.0.1 --port 8000 --no-access-log
    ```
 
-Если у тебя уже есть профиль Campus Threads, войди по паролю и нажми **Подключить Microsoft** в своём профиле. Выбери аккаунт КБТУ с тем же адресом. Это свяжет вход с существующим профилем и его данными. Чтобы одновременно разрешить новую регистрацию по письму, используй `AUTH_MODE=both` и настроенную почту.
+Ранее подтверждённый профиль можно связать с Microsoft: войди по паролю и нажми **Подключить Microsoft** в профиле. Для обычной регистрации с паролем оставь `AUTH_MODE=domain`; отправка писем не используется.
 
 Код входа находится в [microsoft.py](server/microsoft.py). Запросы к базе и привязка аккаунта описаны в [microsoft.sql](server/sql/microsoft.sql). При входе браузер получает сессию Campus Threads, а в PostgreSQL сохраняется связь профиля с идентификатором Microsoft.
 
-## Отправка с корпоративного Outlook КБТУ
+## Доступ пользователям
 
-Этот режим отправляет письмо от ящика, с которым владелец вошёл в Microsoft. Бэкенд использует делегированное разрешение `Mail.Send`. Участники пилота продолжают получать обычный шестизначный код. [Microsoft Graph sendMail](https://learn.microsoft.com/en-us/graph/api/user-sendmail?view=graph-rest-1.0)
-
-1. В каталоге КБТУ в Microsoft Entra откройте **App registrations → New registration**, задайте имя `Campus Threads Mail` и выберите **Accounts in this organizational directory only**. С вкладки **Overview** скопируйте **Directory (tenant) ID** и **Application (client) ID**. Если университет ограничивает регистрацию приложений или выдачу согласия, эти шаги и разрешение ниже согласует ИТ КБТУ. [Регистрация приложения](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app), [согласие в Entra](https://learn.microsoft.com/en-us/entra/identity-platform/application-consent-experience)
-2. В **Authentication → Add a platform → Mobile and desktop applications** добавьте URI `http://localhost`. В **API permissions → Add a permission → Microsoft Graph → Delegated permissions** добавьте `Mail.Send`. Если автоматически появился `User.Read`, его можно удалить. [Настройка интерактивного входа MSAL](https://learn.microsoft.com/en-us/entra/msal/python/getting-started/acquiring-tokens#interactive-vs-silent)
-3. Остановите FastAPI и обновите зависимости из `requirements.txt`. Замените настройки почты в локальном `.env`. Для пробы оставьте `APP_ENV=dev` и текущий `APP_ORIGIN`.
-
-   ```dotenv
-   MAIL_MODE=graph
-   GRAPH_TENANT_ID=идентификатор-каталога
-   GRAPH_CLIENT_ID=идентификатор-приложения
-   GRAPH_SENDER=your.name@kbtu.kz
-   ```
-
-4. Выполните команды в PowerShell. Первая откроет страницу входа Microsoft. Войдите именно тем аккаунтом, который указан в `GRAPH_SENDER`. Вторая отправит пробное письмо на этот же адрес. Проверьте входящие и спам в Outlook. Статус HTTP 202 означает, что Graph принял запрос к обработке. [Как Graph обрабатывает отправку](https://learn.microsoft.com/en-us/graph/outlook-things-to-know-about-send-mail)
-
-   ```powershell
-   .\.venv\Scripts\python.exe -m server.mail authorize
-   .\.venv\Scripts\python.exe -m server.mail test
-   ```
-
-5. Запустите FastAPI и проверьте кнопку «Получить код» с собственным адресом. При необходимости сверяйте причины ошибок с журналом сервера.
-
-В [mail_graph.py](server/mail_graph.py) MSAL сохраняет данные OAuth в зашифрованном файле `.mail-auth/graph.cache` и обновляет токен при необходимости. Пароль и MFA вводятся на стороне Microsoft. Для пилота с Graph используйте один процесс Uvicorn, постоянный приватный путь `GRAPH_TOKEN_CACHE` и тот же `APP_SECRET`, с которым был создан кеш для этого окружения. Если Microsoft потребует повторного входа, остановите FastAPI, повторите `authorize` и запустите сервер. Храните кеш и `.env` вне публикации и репозитория. [Хранение токенов MSAL](https://learn.microsoft.com/en-us/entra/msal/python/advanced/msal-python-token-cache-serialization)
-
-## Почта для неофициального пилота
-
-Для небольшой группы можно подключить отдельный личный Gmail как отправителя. Студент указывает свой адрес `@kbtu.kz`, сервер отправляет письмо с Gmail, а студент вводит код, полученный в Outlook. Этот сценарий использует обычный SMTP и работает без регистрации в Microsoft Entra. [Настройки SMTP Gmail](https://support.google.com/mail/answer/7104828)
-
-1. Включи двухэтапную проверку в аккаунте Gmail и создай для Campus Threads отдельный **пароль приложения**, если эта функция доступна для твоего аккаунта. [Как создать пароль приложения](https://support.google.com/accounts/answer/185833)
-2. Открой локальный `.env`, замени строку `MAIL_MODE=file` и добавь настройки ниже. В `SMTP_USER` и `SMTP_FROM` подставь один и тот же адрес Gmail, а в `SMTP_PASSWORD` вставь пароль приложения без пробелов. Храни пароль только в локальном `.env` или секретах хостинга.
-
-   ```dotenv
-   AUTH_MODE=code
-   MAIL_MODE=smtp
-   SMTP_HOST=smtp.gmail.com
-   SMTP_PORT=587
-   SMTP_SECURITY=starttls
-   SMTP_USER=your.address@gmail.com
-   SMTP_FROM=your.address@gmail.com
-   SMTP_PASSWORD='пароль приложения'
-   ```
-
-3. Перезапусти FastAPI. Открой «Создать аккаунт по почте», введи **свой** `@kbtu.kz` и нажми «Получить код». Проверь входящие и нежелательную почту в Outlook. Так можно проверить доставку до приглашения группы. Если сайт сообщает об ошибке, посмотри журнал FastAPI. Например, SMTP `535` означает, что Gmail отклонил вход. [Ошибки Gmail SMTP](https://support.google.com/mail/answer/3726730)
-
-## Доступ тестировщикам
-
-На хостинге выполните миграции с пилотным `DATABASE_URL` и запустите FastAPI за HTTPS. Установите `APP_ENV=pilot`, укажите публичный HTTPS-адрес в `APP_ORIGIN` и выберите один из режимов выше. Для `AUTH_MODE=microsoft` достаточно настроек `MS_LOGIN_*` и адреса возврата. Если выбираете регистрацию по письму, настройте `MAIL_MODE=graph` или параметры SMTP, которые предоставит ИТ КБТУ. При работе за прокси настройте Uvicorn доверять заголовкам с IP только от этого прокси, чтобы лимиты учитывали IP клиента.
-
-Перед рассылкой ссылки проверьте выбранный сценарий на собственном аккаунте КБТУ. Для регистрации по письму дополнительно проверьте доставку во входящие.
+Публикация на бесплатных Render и Neon описана в [DEPLOY.md](DEPLOY.md). Для регистрации используется адрес `@kbtu.kz` и пароль. Почтовые службы, SMTP и Microsoft Graph для этого не нужны.
 
 ## Что положить на GitHub
 

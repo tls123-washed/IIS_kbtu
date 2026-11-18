@@ -93,10 +93,13 @@ try {
   await test('05 · Регистрация с адресом КБТУ', async page => {
     await page.goto(fixtures.origin);
     await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
+    assert.equal(await page.locator('input[name=code]').count(), 0);
+    const registered = page.waitForResponse(response => response.url().endsWith('/api/auth/register') && response.request().method() === 'POST');
     for (const [name, value] of Object.entries({ email: 'front_new@kbtu.kz', username: 'front_new', first: 'Тест', last: 'Студент', password: fixtures.password })) {
       await page.locator(`input[name="${name}"]`).fill(value);
     }
     await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
+    assert.equal((await registered).status(), 201);
     await page.locator('#sidebarAccount').getByText('@front_new', { exact: true }).waitFor();
   });
   await test('06 · Другой почтовый домен отклоняется', async page => {

@@ -18,6 +18,7 @@ MIGRATIONS = (
     (5, "server/schema/05_domain_registration.sql", "server/sql/domain_registration.sql"),
     (6, "server/schema/06_organizers.sql", "server/sql/organizers.sql"),
     (7, "server/sql/moderation.sql"),
+    (8, "server/schema/08_remove_email_codes.sql"),
 )
 
 
