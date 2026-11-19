@@ -1,0 +1,14 @@
+{
+  "testedAt": "2026-11-19T11:07:55.436Z",
+  "origin": "https://campus-threads-am1s.onrender.com",
+  "revision": "87a6d54",
+  "passed": true,
+  "checks": [
+    "Site moderator without organizer role sees Create event in My tickets",
+    "Event is published through the real interface and displayed in Upcoming events",
+    "Another member obtains a free pass through the real interface",
+    "Revoking the site moderator role immediately blocks further publication",
+    "Existing owner profile tls now has event creation permission"
+  ],
+  "temporary_records_removed": true
+}
