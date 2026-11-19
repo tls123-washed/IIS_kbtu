@@ -198,8 +198,8 @@ try {
     await page.getByRole('heading', { name: 'Клуб UI тестов', exact: true }).waitFor();
     await page.locator('.comm-head').getByRole('button', { name: 'Вы участник', exact: true }).waitFor();
   });
-  await test('18 · Организатор публикует мероприятие', async page => {
-    await signedIn(page);
+  await test('18 · Модератор сайта публикует мероприятие', async page => {
+    await signedIn(page, 2);
     await nav(page, 'Мероприятия');
     await page.getByRole('button', { name: 'Создать мероприятие', exact: true }).click();
     await page.locator('input[name=title]').fill('Тестовое событие');

@@ -10,6 +10,7 @@
     "test:demo": "node tests/smoke.mjs",
     "test:front": "node tests/front/run.mjs",
     "test:startup": "node tests/front/startup.mjs",
+    "test:events": "node tests/front/events.mjs",
     "test:load": "python tests/load.py",
     "update-vendor": "node tests/update-vendor.mjs"
   },

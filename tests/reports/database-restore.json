@@ -1,6 +1,6 @@
 {
-  "tested_at": "2026-11-18T17:11:09.214486+00:00",
-  "schema_version": 8,
+  "tested_at": "2026-11-19T11:02:02.001828+00:00",
+  "schema_version": 9,
   "restored_to_empty_database": true,
   "tables": 24,
   "api_routines": 40,
@@ -14,8 +14,9 @@
     5,
     6,
     7,
-    8
+    8,
+    9
   ],
   "api_tests_passed": true,
-  "api_tests_run": 11
+  "api_tests_run": 12
 }

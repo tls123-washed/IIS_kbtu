@@ -231,7 +231,7 @@ export function createViews(api, app) {
 
     async events(v) {
       const mine = v.tab === 'mine';
-      const { items: rows, next, canCreateEvent } = mine ? { items: await api('/tickets') } : await loadPage('/events', v.cursor);
+      const { items: rows, next, canCreateEvent } = mine ? await api('/tickets', { paged: true }) : await loadPage('/events', v.cursor);
       return `
         <div class="topbar"><span class="top-title">Мероприятия</span>
           <div data-live="event-actions">${canCreateEvent ? '<button class="btn sm primary" data-act="go" data-go="createEvent">Создать мероприятие</button>' : ''}</div>
@@ -251,7 +251,9 @@ export function createViews(api, app) {
               event.available ? `<div class="event-footer"><small>Мест осталось: ${event.available}</small>
                 <button class="btn primary sm" data-act="ticket" data-id="${event.event_id}">Получить бесплатный пропуск</button></div>` :
               '<span class="badge">Мест нет</span>'}
-          </article>`).join('') || `<div class="empty">${mine ? 'У вас пока нет билетов.' : 'Предстоящих мероприятий пока нет.'}</div>`}
+          </article>`).join('') || `<div class="empty">${mine ? 'У вас пока нет билетов.' : canCreateEvent
+            ? 'Предстоящих мероприятий пока нет. Нажмите «Создать мероприятие», чтобы опубликовать первое.'
+            : 'Предстоящих мероприятий пока нет. Создавать мероприятия могут организаторы и модераторы сайта.'}</div>`}
         ${mine ? '' : pageControls(v, next)}</div>`;
     },
 

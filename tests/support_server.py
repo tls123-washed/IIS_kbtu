@@ -18,7 +18,7 @@ from server.config import ROOT, database_url
 from server.manage import migrate
 
 
-def prepare(port, users):
+def prepare(port, users, empty_events=False):
     url = os.getenv("TEST_DATABASE_URL") or make_conninfo(database_url(), dbname="campus_threads_test")
     if not conninfo_to_dict(url).get("dbname", "").endswith("_test"):
         raise RuntimeError("TEST_DATABASE_URL должен указывать на базу *_test.")
@@ -49,6 +49,8 @@ def prepare(port, users):
             fixtures["users"].append({"username": username, "user_id": user_id, "session": token})
         first = fixtures["users"][0]["user_id"]
         db.execute("SELECT campus_api.grant_event_organizer('front_0')")
+        if users > 2:
+            db.execute("SELECT campus_api.change_moderator('front_2', TRUE)")
         community = db.execute("SELECT campus_api.create_community(%s, 'Клуб разработки', 'Встречи и проекты')",
                                (first,)).fetchone()[0]
         fixtures["community"] = community
@@ -58,7 +60,7 @@ def prepare(port, users):
             FROM generate_series(1, 35) n
         """, (first,))
         fixtures["post"] = db.execute("SELECT post_id FROM posts ORDER BY created_at DESC LIMIT 1").fetchone()[0]
-        event_id = db.execute("""
+        event_id = None if empty_events else db.execute("""
             INSERT INTO events (title, description, venue, starts_at, capacity, organizer_id)
             VALUES ('Встреча разработчиков', 'Обсуждаем студенческие проекты', 'КБТУ · 201',
                     now() + interval '2 days', 1, %s) RETURNING event_id
@@ -73,6 +75,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8001)
     parser.add_argument("--users", type=int, default=100)
+    parser.add_argument("--empty-events", action="store_true")
     args = parser.parse_args()
-    prepare(args.port, args.users)
+    prepare(args.port, args.users, args.empty_events)
     uvicorn.run("server.main:app", host="127.0.0.1", port=args.port, access_log=False)

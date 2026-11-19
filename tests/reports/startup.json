@@ -1,5 +1,5 @@
 {
-  "testedAt": "2026-11-18T17:09:40.723Z",
+  "testedAt": "2026-11-19T11:01:33.015Z",
   "tests": [
     {
       "name": "Гость видит вход без запросов настроек и сессии",
@@ -9,22 +9,22 @@
     {
       "name": "Ошибка проверки сессии допускает повтор без потери cookie",
       "passed": true,
-      "milliseconds": 143
+      "milliseconds": 170
     },
     {
       "name": "Зависший запрос сессии завершается сообщением и повтором",
       "passed": true,
-      "milliseconds": 15222
+      "milliseconds": 15237
     },
     {
       "name": "Сбой загрузки JavaScript показывает независимую кнопку перезагрузки",
       "passed": true,
-      "milliseconds": 155
+      "milliseconds": 128
     },
     {
       "name": "Зависшая загрузка JavaScript не оставляет бесконечный индикатор",
       "passed": true,
-      "milliseconds": 12141
+      "milliseconds": 12161
     }
   ]
 }

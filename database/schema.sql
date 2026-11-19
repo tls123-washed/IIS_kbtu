@@ -1,4 +1,4 @@
--- Campus Threads: schema version 8, PostgreSQL 18.
+-- Campus Threads: schema version 9, PostgreSQL 18.
 -- Restore into a NEW EMPTY database. No user data included.
 
 --
@@ -88,7 +88,11 @@ $$;
 CREATE FUNCTION campus_api.can_create_event(p_user integer) RETURNS boolean
     LANGUAGE sql STABLE
     AS $$
-    SELECT EXISTS (SELECT 1 FROM public.event_organizers WHERE user_id = p_user);
+    SELECT EXISTS (SELECT 1 FROM public.event_organizers WHERE user_id = p_user)
+        OR EXISTS (
+            SELECT 1 FROM public.moderators
+            WHERE user_id = p_user AND access_level = 2
+        );
 $$;
 
 

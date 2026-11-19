@@ -282,7 +282,8 @@ const forms = {
   },
   async createEvent(data) {
     await send('/events', { ...data, capacity: Number(data.capacity) });
-    await back();
+    app.history = [];
+    await go('events', {}, false);
     toast('Мероприятие опубликовано.');
     refreshContext();
   },

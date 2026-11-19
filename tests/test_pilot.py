@@ -296,6 +296,48 @@ class PilotTest(unittest.TestCase):
         self.assertEqual(other.get("/api/tickets").json(), [])
         self.assertEqual(other.get("/api/events").json()[0]["available"], 0)
 
+    def test_site_moderator_can_create_events_and_revocation_is_immediate(self):
+        moderator = self.client
+        member = TestClient(app, base_url=ORIGIN, headers={"Origin": ORIGIN})
+        self.addCleanup(member.close)
+        moderator_id = self.register(moderator, "event_mod")
+        self.register(member, "attendee")
+        community = member.post("/api/communities", json={"name": "Частный клуб"}).json()["community_id"]
+        moderator.put(f"/api/communities/{community}/membership", json={"enabled": True})
+        with psycopg.connect(self.url) as db:
+            db.execute("SELECT campus_api.change_moderator('event_mod', TRUE, 'Частный клуб')")
+            future = db.execute("SELECT (now() AT TIME ZONE 'Asia/Almaty') + interval '1 day'").fetchone()[0]
+        event = {"title": "Первая встреча", "venue": "КБТУ", "starts_at": future.isoformat(), "capacity": 1}
+        # Локальная модерка сообщества не даёт права на общую афишу.
+        self.assertEqual(moderator.get("/api/events").headers["X-Can-Create-Event"], "0")
+        self.assertEqual(moderator.get("/api/tickets").headers["X-Can-Create-Event"], "0")
+        self.assertEqual(moderator.post("/api/events", json=event).status_code, 403)
+        with psycopg.connect(self.url) as db:
+            db.execute("SELECT campus_api.change_moderator('event_mod', TRUE)")
+            self.assertFalse(db.execute("SELECT EXISTS (SELECT 1 FROM event_organizers WHERE user_id = %s)",
+                                        (moderator_id,)).fetchone()[0])
+        # Здесь есть только модерка сайта, отдельный организатор не назначен.
+        self.assertEqual(moderator.get("/api/events").headers["X-Can-Create-Event"], "1")
+        self.assertEqual(moderator.get("/api/tickets").headers["X-Can-Create-Event"], "1")
+        created = moderator.post("/api/events", json=event)
+        self.assertEqual(created.status_code, 201, created.text)
+        event_id = created.json()["event_id"]
+        self.assertEqual(member.post(f"/api/events/{event_id}/ticket").status_code, 200)
+        self.assertEqual(member.get("/api/tickets").json()[0]["title"], "Первая встреча")
+        with psycopg.connect(self.url) as db:
+            db.execute("SELECT campus_api.change_moderator('event_mod', FALSE)")
+        self.assertEqual(moderator.get("/api/events").headers["X-Can-Create-Event"], "0")
+        self.assertEqual(moderator.get("/api/tickets").headers["X-Can-Create-Event"], "0")
+        self.assertEqual(moderator.post("/api/events", json=event).status_code, 403)
+        self.assertEqual(len(moderator.get("/api/events").json()), 1)
+        # Явно назначенная роль организатора сохраняется независимо от модерки.
+        with psycopg.connect(self.url) as db:
+            db.execute("SELECT campus_api.grant_event_organizer('event_mod')")
+            db.execute("SELECT campus_api.change_moderator('event_mod', TRUE)")
+            db.execute("SELECT campus_api.change_moderator('event_mod', FALSE)")
+        self.assertEqual(moderator.get("/api/events").headers["X-Can-Create-Event"], "1")
+        self.assertEqual(moderator.post("/api/events", json={**event, "title": "Встреча организатора"}).status_code, 201)
+
     def test_moderator_can_delete_only_with_current_permissions(self):
         author = self.client
         moderator = TestClient(app, base_url=ORIGIN, headers={"Origin": ORIGIN})

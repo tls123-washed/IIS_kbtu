@@ -19,6 +19,7 @@ MIGRATIONS = (
     (6, "server/schema/06_organizers.sql", "server/sql/organizers.sql"),
     (7, "server/sql/moderation.sql"),
     (8, "server/schema/08_remove_email_codes.sql"),
+    (9, "server/schema/09_moderator_events.sql"),
 )
 
 

@@ -11,6 +11,11 @@ from .social import Id
 router = APIRouter(prefix="/api", tags=["Мероприятия"])
 
 
+def event_permissions(db, user_id, response):
+    permissions = db.execute("SELECT campus_api.can_create_event(%s) AS allowed", (user_id,)).fetchone()
+    response.headers["X-Can-Create-Event"] = "1" if permissions["allowed"] else "0"
+
+
 class EventInput(BaseModel):
     title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
     description: Annotated[str, StringConstraints(strip_whitespace=True, max_length=600)] = ""
@@ -22,8 +27,7 @@ class EventInput(BaseModel):
 @router.get("/events")
 def events(db: Db, user: User, page: Pagination, response: Response):
     user_id = user["user_id"]
-    permissions = db.execute("SELECT campus_api.can_create_event(%s) AS allowed", (user_id,)).fetchone()
-    response.headers["X-Can-Create-Event"] = "1" if permissions["allowed"] else "0"
+    event_permissions(db, user_id, response)
     rows = db.execute(
         "SELECT * FROM campus_api.events_page(%s, %s, %s, %s)",
         (user_id, page.size + 1, *page.position),
@@ -38,14 +42,15 @@ def create_event(body: EventInput, db: Db, user: User):
         (user["user_id"], body.title, body.description, body.venue, body.starts_at, body.capacity),
     ).fetchone()
     if result["outcome"] == "forbidden":
-        raise HTTPException(403, "Публиковать мероприятия могут организаторы.")
+        raise HTTPException(403, "Публиковать мероприятия могут организаторы и модераторы сайта.")
     if result["outcome"] == "past":
         raise HTTPException(422, "Выберите дату и время в будущем.")
     return {"event_id": result["event_id"]}
 
 
 @router.get("/tickets")
-def tickets(db: Db, user: User):
+def tickets(db: Db, user: User, response: Response):
+    event_permissions(db, user["user_id"], response)
     return db.execute("SELECT * FROM campus_api.my_tickets(%s)", (user["user_id"],)).fetchall()
 
 
