@@ -1,3 +1,5 @@
+import { locale, t } from './i18n.js';
+
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -10,12 +12,13 @@ function avatar(name, id, size = 36, anon = false) {
   return `<span class="av" style="--s:${size}px;--h:${h}" aria-hidden="true">${esc(ini.toUpperCase())}</span>`;
 }
 function ago(d) {
-  const t = new Date(d); const s = (Date.now() - t.getTime()) / 1000;
-  if (s < 60) return 'сейчас';
-  if (s < 3600) return Math.floor(s / 60) + ' мин';
-  if (s < 86400) return Math.floor(s / 3600) + ' ч';
-  if (s < 86400 * 7) return Math.floor(s / 86400) + ' д';
-  return t.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  const date = new Date(d);
+  const seconds = (Date.now() - date.getTime()) / 1000;
+  if (seconds < 60) return t('сейчас');
+  if (seconds < 3600) return Math.floor(seconds / 60) + ' ' + t('мин');
+  if (seconds < 86400) return Math.floor(seconds / 3600) + ' ' + t('ч');
+  if (seconds < 86400 * 7) return Math.floor(seconds / 86400) + ' ' + t('д');
+  return date.toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 }
 function richText(t) {
   return esc(t).replace(/#([a-zа-яё0-9_]+)/gi, (m, tag) => `<button class="tag" data-act="tag" data-tag="${esc(tag.toLowerCase())}">#${esc(tag)}</button>`);
@@ -47,7 +50,7 @@ function postCard(p, opts = {}) {
   const anon = p.is_anonymous;
   const mine = p.mine ?? p.author_id === opts.viewer;
   const canDelete = p.can_delete ?? mine;
-  const name = anon ? 'Аноним' : p.full_name;
+  const name = anon ? t('Аноним') : p.full_name;
   const who = anon ? '' : `<span class="handle">@${esc(p.author)}</span>`;
   const profileAttr = anon ? '' : `data-act="profile" data-id="${p.author_id}"`;
   return `
@@ -57,23 +60,23 @@ function postCard(p, opts = {}) {
       <header class="post-head">
         <button class="name" ${profileAttr} ${anon ? 'disabled' : ''}>${esc(name)}</button>${who}
         <span class="dot">·</span><time>${ago(p.created_at)}</time>
-        ${canDelete ? `<button class="mini-del" data-act="delete" data-id="${p.post_id}" aria-label="Удалить пост">${icon('trash')}</button>` : ''}
+        ${canDelete ? `<button class="mini-del" data-act="delete" data-id="${p.post_id}" aria-label="${t('Удалить пост')}">${icon('trash')}</button>` : ''}
       </header>
       ${p.community && !opts.reply ? `<button class="chip-comm" data-act="community" data-id="${p.community_id}">${esc(p.community)}</button>` : ''}
       <div class="post-text" ${opts.main ? '' : `data-act="thread" data-id="${p.post_id}"`}>${richText(p.content)}</div>
       <footer class="post-actions">
-        <button class="act like ${p.liked ? 'on' : ''}" data-act="like" data-id="${p.post_id}" data-liked="${p.liked}" aria-label="Нравится">${icon('heart')}<span>${p.like_count}</span></button>
-        <button class="act" data-act="thread" data-id="${p.post_id}" aria-label="Ответы">${icon('reply')}<span>${p.reply_count}</span></button>
+        <button class="act like ${p.liked ? 'on' : ''}" data-act="like" data-id="${p.post_id}" data-liked="${p.liked}" aria-label="${t('Нравится')}">${icon('heart')}<span>${p.like_count}</span></button>
+        <button class="act" data-act="thread" data-id="${p.post_id}" aria-label="${t('Ответы')}">${icon('reply')}<span>${p.reply_count}</span></button>
       </footer>
     </div>
   </article>`;
 }
 
 function userRow(u, extra) {
-  return `<button class="user-row" data-act="profile" data-id="${u.user_id}">${avatar(u.full_name, u.user_id, 40)}<span><b>${esc(u.full_name)}</b><small>@${esc(u.username)} · ${u.user_type === 'teacher' ? 'преподаватель' : 'студент'}${u.faculty ? ' · ' + esc(u.faculty) : ''}</small></span><small class="mono">${extra || u.followers + ' подп.'}</small></button>`;
+  return `<button class="user-row" data-act="profile" data-id="${u.user_id}">${avatar(u.full_name, u.user_id, 40)}<span><b>${esc(u.full_name)}</b><small>@${esc(u.username)} · ${t(u.user_type === 'teacher' ? 'преподаватель' : 'студент')}${u.faculty ? ' · ' + esc(u.faculty) : ''}</small></span><small class="mono">${extra || u.followers + ' ' + t('подп.')}</small></button>`;
 }
 function backbar(title) {
-  return `<div class="topbar"><button class="icon-btn" data-act="back" aria-label="Назад">${icon('back')}</button><span class="top-title">${esc(title)}</span></div>`;
+  return `<div class="topbar"><button class="icon-btn" data-act="back" aria-label="${t('Назад')}">${icon('back')}</button><span class="top-title">${esc(title)}</span></div>`;
 }
 
 

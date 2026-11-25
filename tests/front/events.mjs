@@ -51,8 +51,9 @@ try {
     await signedIn(page, 1);
     await page.getByText('Предстоящих мероприятий пока нет. Создавать мероприятия могут организаторы и модераторы сайта.', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Создать мероприятие', exact: true }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Сводка команды', exact: true }).count(), 0);
   });
-  await test('Модератор создаёт первое событие из «Моих билетов», участник получает пропуск', async page => {
+  await test('Модератор создаёт событие, новый пропуск появляется в сводке без перезагрузки', async page => {
     await signedIn(page, 2);
     await page.getByText('Предстоящих мероприятий пока нет. Нажмите «Создать мероприятие», чтобы опубликовать первое.', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Мои билеты', exact: true }).click();
@@ -64,6 +65,9 @@ try {
     await page.locator('input[name=capacity]').fill('1');
     await page.getByRole('button', { name: 'Опубликовать мероприятие', exact: true }).click();
     await page.getByRole('heading', { name: 'Первая встреча модератора', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Сводка команды', exact: true }).click();
+    const tickets = page.locator('.metric-grid > div').filter({ hasText: 'Выданные пропуска' }).locator('dd');
+    await tickets.getByText('0', { exact: true }).waitFor();
     const context = await browser.newContext();
     try {
       const attendee = await context.newPage();
@@ -72,6 +76,7 @@ try {
         .getByRole('button', { name: 'Получить бесплатный пропуск', exact: true }).click();
       await attendee.locator('.ticket-number code').waitFor();
       assert.match(await attendee.locator('.ticket-number code').textContent(), /^[a-f0-9-]{36}$/);
+      await tickets.getByText('1', { exact: true }).waitFor({ timeout: 20000 });
     } finally { await context.close(); }
   });
 } finally {

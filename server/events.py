@@ -1,6 +1,11 @@
+from base64 import b64decode
+from binascii import Error as Base64Error
+from io import BytesIO
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Response
+from PIL import Image
 from pydantic import BaseModel, Field, NaiveDatetime, StringConstraints
 
 from .auth import User
@@ -22,30 +27,86 @@ class EventInput(BaseModel):
     venue: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
     starts_at: NaiveDatetime
     capacity: int = Field(ge=1, le=2147483647)
+    cover: str | None = Field(None, max_length=280_000)
+
+
+class CheckIn(BaseModel):
+    ticket_id: UUID
+
+
+def prepare_cover(value):
+    if value is None:
+        return None
+    try:
+        raw = b64decode(value, validate=True)
+        with Image.open(BytesIO(raw), formats=['JPEG']) as image:
+            if max(image.size) > 960:
+                raise ValueError
+            output = BytesIO()
+            image.convert('RGB').save(output, format='JPEG', quality=78, optimize=True)
+        if output.tell() > 200_000:
+            raise ValueError
+        return output.getvalue()
+    except (Base64Error, OSError, ValueError, Image.DecompressionBombError):
+        raise HTTPException(422, "Не удалось обработать фото мероприятия.") from None
 
 
 @router.get("/events")
-def events(db: Db, user: User, page: Pagination, response: Response):
+def events(db: Db, user: User, page: Pagination, response: Response, archive: bool = False):
     user_id = user["user_id"]
     event_permissions(db, user_id, response)
     rows = db.execute(
-        "SELECT * FROM campus_api.events_page(%s, %s, %s, %s)",
-        (user_id, page.size + 1, *page.position),
+        "SELECT * FROM campus_api.event_cards(%s, %s, %s, %s, %s)",
+        (user_id, archive, page.size + 1, *page.position),
     ).fetchall()
     return page.finish(rows, "starts_at", "event_id")
 
 
 @router.post("/events", status_code=201)
 def create_event(body: EventInput, db: Db, user: User):
-    result = db.execute(
-        "SELECT * FROM campus_api.create_event(%s, %s, %s, %s, %s, %s)",
-        (user["user_id"], body.title, body.description, body.venue, body.starts_at, body.capacity),
-    ).fetchone()
+    cover = prepare_cover(body.cover)
+    with db.transaction():
+        result = db.execute(
+            "SELECT * FROM campus_api.create_event(%s, %s, %s, %s, %s, %s)",
+            (user["user_id"], body.title, body.description, body.venue, body.starts_at, body.capacity),
+        ).fetchone()
+        if result["outcome"] == "ok" and cover is not None:
+            db.execute("UPDATE public.events SET cover_jpeg = %s WHERE event_id = %s", (cover, result["event_id"]))
     if result["outcome"] == "forbidden":
         raise HTTPException(403, "Публиковать мероприятия могут организаторы и модераторы сайта.")
     if result["outcome"] == "past":
         raise HTTPException(422, "Выберите дату и время в будущем.")
     return {"event_id": result["event_id"]}
+
+
+@router.get("/events/{event_id}")
+def event_details(event_id: Id, db: Db, user: User):
+    row = db.execute("SELECT * FROM campus_api.event_cards(%s, FALSE, 1, NULL, NULL, %s)",
+                     (user["user_id"], event_id)).fetchone()
+    if row is None:
+        raise HTTPException(404, "Мероприятие не найдено.")
+    return row
+
+
+@router.get("/events/{event_id}/cover", response_class=Response)
+def event_cover(event_id: Id, db: Db, user: User):
+    row = db.execute("SELECT cover_jpeg FROM public.events WHERE event_id = %s", (event_id,)).fetchone()
+    if row is None or row["cover_jpeg"] is None:
+        raise HTTPException(404, "Фото не найдено.")
+    return Response(row["cover_jpeg"], media_type="image/jpeg", headers={"Cache-Control": "private, max-age=300"})
+
+
+@router.post("/events/{event_id}/check-in")
+def check_in(event_id: Id, body: CheckIn, db: Db, user: User):
+    outcome = db.execute("SELECT campus_api.check_in_ticket(%s, %s, %s) AS outcome",
+                         (user["user_id"], event_id, body.ticket_id)).fetchone()["outcome"]
+    if outcome == "missing":
+        raise HTTPException(404, "Мероприятие или пропуск не найдены.")
+    if outcome == "forbidden":
+        raise HTTPException(403, "У вас нет права отмечать посещение этого мероприятия.")
+    if outcome == "too_early":
+        raise HTTPException(409, "Отметка посещения доступна после начала мероприятия.")
+    return {"already_checked_in": outcome == "already_checked_in"}
 
 
 @router.get("/tickets")

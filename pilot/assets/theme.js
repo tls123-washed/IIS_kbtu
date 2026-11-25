@@ -9,7 +9,10 @@
     const toggle = document.getElementById('themeToggle');
     if (toggle) {
       toggle.setAttribute('aria-pressed', String(dark));
-      document.getElementById('themeLabel').textContent = dark ? 'Светлая тема' : 'Тёмная тема';
+      let english = false;
+      try { english = localStorage.getItem('campus-language') === 'en'; } catch {}
+      document.getElementById('themeLabel').textContent = english
+        ? (dark ? 'Light theme' : 'Dark theme') : (dark ? 'Светлая тема' : 'Тёмная тема');
     }
   }
   document.addEventListener('DOMContentLoaded', () => {

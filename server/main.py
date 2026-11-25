@@ -54,7 +54,7 @@ async def browser_policy(request: Request, call_next):
             return JSONResponse({"detail": "Откройте приложение по его основному адресу."}, status_code=403)
     response = await call_next(request)
     if api:
-        response.headers["Cache-Control"] = "no-store"
+        response.headers.setdefault("Cache-Control", "no-store")
     elif request.url.path.startswith("/assets/"):
         response.headers["Cache-Control"] = "public, no-cache"
     timings = [f"app;dur={(perf_counter() - started) * 1000:.1f}"]
@@ -125,6 +125,11 @@ def favicon():
 @app.get("/assets/ui.js", include_in_schema=False)
 def ui():
     return FileResponse(ROOT / "site/ui.js", media_type="text/javascript")
+
+
+@app.get("/assets/i18n.js", include_in_schema=False)
+def translations():
+    return FileResponse(ROOT / "site/i18n.js", media_type="text/javascript")
 
 
 app.mount("/assets", StaticFiles(directory=ROOT / "pilot/assets"), name="assets")

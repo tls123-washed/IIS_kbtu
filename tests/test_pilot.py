@@ -3,13 +3,16 @@ import os
 import json
 import re
 import unittest
+from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 from unittest.mock import patch
 from uuid import uuid4
 
 import psycopg
 from fastapi.testclient import TestClient
 from psycopg.conninfo import conninfo_to_dict
+from PIL import Image
 
 from server.config import settings
 from server.main import app
@@ -337,6 +340,46 @@ class PilotTest(unittest.TestCase):
             db.execute("SELECT campus_api.change_moderator('event_mod', FALSE)")
         self.assertEqual(moderator.get("/api/events").headers["X-Can-Create-Event"], "1")
         self.assertEqual(moderator.post("/api/events", json={**event, "title": "Встреча организатора"}).status_code, 201)
+
+    def test_event_archive_cover_and_check_in(self):
+        moderator = self.client
+        member = self.enterContext(TestClient(app, base_url=ORIGIN, headers={"Origin": ORIGIN}))
+        self.register(moderator, "event_moderator")
+        self.register(member, "event_member")
+        with psycopg.connect(self.url) as db:
+            db.execute("SELECT campus_api.change_moderator('event_moderator', TRUE)")
+            starts_at = db.execute("SELECT (now() AT TIME ZONE 'Asia/Almaty') + interval '2 days'").fetchone()[0]
+        image = BytesIO()
+        Image.new("RGB", (32, 24), "navy").save(image, format="JPEG")
+        data = {"title": "Открытая лекция", "venue": "КБТУ", "capacity": 10, "starts_at": starts_at.isoformat()}
+        self.assertEqual(moderator.post("/api/events", json={**data, "cover": "bad-image"}).status_code, 422)
+        created = moderator.post("/api/events", json={**data, "cover": b64encode(image.getvalue()).decode()})
+        self.assertEqual(created.status_code, 201, created.text)
+        event_id = created.json()["event_id"]
+        event = f"/api/events/{event_id}"
+        cover = member.get(event + "/cover")
+        self.assertEqual(cover.headers["content-type"], "image/jpeg")
+        self.assertEqual(Image.open(BytesIO(cover.content)).size, (32, 24))
+        ticket = member.post(event + "/ticket").json()
+        self.assertEqual(member.post(event + "/check-in", json=ticket).status_code, 403)
+        self.assertEqual(moderator.post(event + "/check-in", json=ticket).status_code, 409)
+        self.assertEqual(member.get("/api/events", params={"archive": True}).json(), [])
+        with psycopg.connect(self.url) as db:
+            db.execute("UPDATE events SET starts_at = now() - interval '1 minute' WHERE event_id = %s", (event_id,))
+        archived, = member.get("/api/events", params={"archive": True}).json()
+        self.assertEqual(archived["event_id"], event_id)
+        self.assertEqual(archived["registered"], 1)
+        self.assertEqual(archived["checked_in"], 0)
+        self.assertEqual(member.get("/api/events").json(), [])
+        self.assertEqual(member.get("/api/analytics").status_code, 403)
+        self.assertEqual(moderator.get("/api/analytics").json()["check_ins"], 0)
+        for repeat in (False, True):
+            checked = moderator.post(event + "/check-in", json=ticket)
+            self.assertEqual(checked.status_code, 200, checked.text)
+            self.assertEqual(checked.json()["already_checked_in"], repeat)
+        self.assertEqual(member.get(event).json()["checked_in"], 1)
+        summary = moderator.get("/api/analytics").json()
+        self.assertEqual((summary["past"], summary["tickets"], summary["check_ins"]), (1, 1, 1))
 
     def test_moderator_can_delete_only_with_current_permissions(self):
         author = self.client

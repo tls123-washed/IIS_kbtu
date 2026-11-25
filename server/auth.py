@@ -78,8 +78,10 @@ def set_cookie(response, token):
 def session_user(request: Request, db: Db):
     token = request.cookies.get(COOKIE, "")
     if len(token) == 43:
-        return db.execute("SELECT * FROM campus_api.session_user(%s, %s)",
-                          (digest(token), settings().domain_signup)).fetchone()
+        return db.execute("""
+            SELECT a.*, campus_api.is_site_moderator(a.user_id) AS site_moderator
+            FROM campus_api.session_user(%s, %s) a
+        """, (digest(token), settings().domain_signup)).fetchone()
 
 
 def current_user(request: Request, db: Db):
@@ -140,7 +142,9 @@ def login(body: Login, request: Request, response: Response, db: Db):
     limit(db, f"login-ip:{request.client.host}", 30, "15 minutes")
     username = body.username.strip().lower()
     limit(db, f"login-user:{username}", 12, "15 minutes")
-    user = db.execute("SELECT (account).*, password_hash FROM campus_api.login_account(%s, %s)",
+    user = db.execute("""SELECT (account).*, password_hash,
+                      campus_api.is_site_moderator((account).user_id) AS site_moderator
+                      FROM campus_api.login_account(%s, %s)""",
                       (username, settings().domain_signup)).fetchone()
     password = body.password.encode()
     stored_hash = user.pop("password_hash") if user else None

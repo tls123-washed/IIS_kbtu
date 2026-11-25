@@ -9,7 +9,7 @@ from psycopg_pool import ConnectionPool
 
 from .config import database_url
 
-MIGRATION_VERSION = 9
+MIGRATION_VERSION = 10
 
 
 def make_pool():

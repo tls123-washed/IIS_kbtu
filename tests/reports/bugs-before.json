@@ -1,0 +1,8 @@
+{
+  "schema_before": 9,
+  "exact_tag_returned_two_prefix_matches": true,
+  "last_admin_leave_status": 204,
+  "remaining_community_admins": 0,
+  "created_event_status": 201,
+  "new_event_missing_on_redirect_page": true
+}

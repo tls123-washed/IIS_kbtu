@@ -1,9 +1,9 @@
 {
-  "tested_at": "2026-11-19T11:02:02.001828+00:00",
-  "schema_version": 9,
+  "tested_at": "2026-11-25T12:18:23.172740+00:00",
+  "schema_version": 10,
   "restored_to_empty_database": true,
   "tables": 24,
-  "api_routines": 40,
+  "api_routines": 45,
   "faculties": 6,
   "users": 0,
   "migration_versions": [
@@ -15,8 +15,9 @@
     6,
     7,
     8,
-    9
+    9,
+    10
   ],
   "api_tests_passed": true,
-  "api_tests_run": 12
+  "api_tests_run": 13
 }

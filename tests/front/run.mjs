@@ -111,7 +111,7 @@ try {
     await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
     await page.getByRole('alert').getByText('Введите корпоративную почту с окончанием @kbtu.kz.').waitFor();
   });
-  await test('07 · Тёмная тема переключается и сохраняется', async page => {
+  await test('07 · Тёмная тема и английский язык сохраняются', async page => {
     await signedIn(page);
     await page.getByRole('button', { name: 'Тёмная тема' }).click();
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
@@ -119,6 +119,11 @@ try {
     await page.getByRole('button', { name: 'Светлая тема' }).waitFor();
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
     await page.screenshot({ path: path.join(output, 'desktop-dark.png') });
+    await page.locator('#languageSelect').selectOption('en');
+    await page.locator('#navigation').getByRole('button', { name: 'Feed', exact: true }).waitFor();
+    await page.reload();
+    await page.locator('#navigation').getByRole('button', { name: 'Events', exact: true }).waitFor();
+    assert.equal(await page.locator('html').getAttribute('lang'), 'en');
   });
   await test('08 · Десктоп использует боковую навигацию и широкую ленту', async page => {
     await signedIn(page);
@@ -183,31 +188,68 @@ try {
     assert.equal((await deleted).status(), 204);
     assert.equal((await page.request.get(fixtures.origin + '/api/posts/' + id)).status(), 404);
   });
-  await test('16 · Поиск из десктопной шапки', async page => {
+  await test('16 · Поиск постов, точного хэштега, сообществ и мероприятий', async page => {
     await signedIn(page);
-    await page.getByRole('textbox', { name: 'Поиск по кампусу' }).fill('Обсуждение проекта');
-    await page.getByRole('button', { name: 'Искать', exact: true }).click();
-    await page.locator('[data-live=search] .post').first().waitFor();
+    const header = page.locator('#headerSearch');
+    const results = page.locator('[data-live=search]');
+    async function search(term) {
+      await header.getByRole('textbox').fill(term);
+      await header.getByRole('button', { name: 'Искать', exact: true }).click();
+    }
+    await search('Обсуждение проекта');
+    await results.locator('.post').first().waitFor();
+    for (const content of ['Редкий #тестпарт', 'Лишний #тестпартдругой']) {
+      const response = await page.request.post(fixtures.origin + '/api/posts', {
+        headers: { Origin: fixtures.origin }, data: { content },
+      });
+      assert.equal(response.status(), 201);
+    }
+    await search('#тестпарт');
+    await results.locator('.post').filter({ hasText: 'Редкий' }).waitFor();
+    assert.equal(await results.locator('.post').count(), 1);
+    await search('разработ');
+    await results.getByRole('button', { name: /Клуб разработки/ }).waitFor();
+    await results.getByRole('button', { name: /Встреча разработчиков/ }).click();
+    await page.getByRole('heading', { name: 'Встреча разработчиков', exact: true }).waitFor();
   });
-  await test('17 · Создание сообщества и вступление', async page => {
+  await test('17 · Сообщество сохраняет последнего администратора', async page => {
     await signedIn(page);
     await nav(page, 'Сообщества');
     await page.getByRole('button', { name: 'Создать сообщество', exact: true }).click();
     await page.locator('input[name=name]').fill('Клуб UI тестов');
     await page.getByRole('button', { name: 'Создать сообщество', exact: true }).click();
     await page.getByRole('heading', { name: 'Клуб UI тестов', exact: true }).waitFor();
-    await page.locator('.comm-head').getByRole('button', { name: 'Вы участник', exact: true }).waitFor();
+    const membership = page.locator('.comm-head').getByRole('button', { name: 'Вы участник', exact: true });
+    await membership.click();
+    await page.getByRole('alert').getByText('Последний администратор не может покинуть сообщество.').waitFor();
+    await membership.waitFor();
   });
-  await test('18 · Модератор сайта публикует мероприятие', async page => {
+  await test('18 · Новое мероприятие с фото открывается за пределами первой страницы', async page => {
     await signedIn(page, 2);
+    const now = Date.now();
+    for (let fixture = 0; fixture < 30; fixture++) {
+      const response = await page.request.post(fixtures.origin + '/api/events', {
+        headers: { Origin: fixtures.origin }, data: {
+          title: `Событие в афише ${fixture}`, venue: 'КБТУ', capacity: 8,
+          starts_at: new Date(now + 4 * 86400000).toISOString().slice(0, 16),
+        },
+      });
+      assert.equal(response.status(), 201);
+    }
     await nav(page, 'Мероприятия');
     await page.getByRole('button', { name: 'Создать мероприятие', exact: true }).click();
     await page.locator('input[name=title]').fill('Тестовое событие');
     await page.locator('input[name=venue]').fill('КБТУ');
-    await page.locator('input[name=starts_at]').fill(new Date(Date.now() + 86400000).toISOString().slice(0, 16));
+    await page.locator('input[name=starts_at]').fill(new Date(now + 20 * 86400000).toISOString().slice(0, 16));
     await page.locator('input[name=capacity]').fill('10');
+    const photo = await page.evaluate(() => document.createElement('canvas').toDataURL('image/png').split(',')[1]);
+    await page.locator('input[name=photo]').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: Buffer.from(photo, 'base64') });
     await page.getByRole('button', { name: 'Опубликовать мероприятие', exact: true }).click();
     await page.getByRole('heading', { name: 'Тестовое событие', exact: true }).waitFor();
+    await page.waitForFunction(() => document.querySelector('.event-card img')?.naturalWidth > 0);
+    await nav(page, 'Мероприятия');
+    await page.locator('[data-live=events] .event-card').first().waitFor();
+    assert.equal(await page.getByRole('heading', { name: 'Тестовое событие', exact: true }).count(), 0);
   });
   await test('19 · Получение бесплатного пропуска', async page => {
     await signedIn(page, 1);

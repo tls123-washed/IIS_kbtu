@@ -2,6 +2,7 @@ import re
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Query
+from psycopg import Error
 from psycopg.errors import UniqueViolation
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -145,13 +146,31 @@ def community(community_id: Id, db: Db, user: User):
 
 @router.put("/communities/{community_id}/membership", status_code=204)
 def membership(community_id: Id, body: Toggle, db: Db, user: User):
-    db.execute("CALL campus_api.set_membership(%s, %s, %s)", (user["user_id"], community_id, body.enabled))
+    try:
+        db.execute("CALL campus_api.set_membership(%s, %s, %s)", (user["user_id"], community_id, body.enabled))
+    except Error as error:
+        if error.sqlstate == 'CT001':
+            raise HTTPException(409, "Последний администратор не может покинуть сообщество.") from None
+        raise
 
 
 @router.get("/search")
 def search(db: Db, user: User, term: str = Query("", max_length=100), tag: str = Query("", max_length=50)):
+    term = term.strip()
+    tag = tag.strip().removeprefix('#').lower()
+    if not tag and re.fullmatch(r"#[a-zа-яё0-9_]{1,50}", term.lower()):
+        term, tag = '', term[1:].lower()
     result = db.execute("SELECT campus_api.search(%s, %s, %s) AS result",
-                        (user["user_id"], term.strip(), tag.lower())).fetchone()["result"]
+                        (user["user_id"], term, tag)).fetchone()["result"]
     if "posts" in result:
         add_delete_permissions(db, user["user_id"], result["posts"])
+    if term and not tag:
+        result.update(db.execute("SELECT campus_api.search_catalog(%s) AS result", (term,)).fetchone()["result"])
     return result
+
+
+@router.get("/analytics")
+def analytics(db: Db, user: User):
+    if not user['site_moderator']:
+        raise HTTPException(403, "Сводка доступна модераторам сайта.")
+    return db.execute("SELECT * FROM campus_api.live_summary").fetchone()

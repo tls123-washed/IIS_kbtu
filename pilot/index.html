@@ -15,15 +15,19 @@
   <link rel="modulepreload" href="/assets/views.js">
 </head>
 <body>
-  <a class="skip-link" href="#screen">Перейти к содержимому</a>
+  <a class="skip-link" href="#screen" data-i18n>Перейти к содержимому</a>
   <div class="desktop-layout">
     <aside class="sidebar">
-      <a class="app-brand" href="/" aria-label="Campus Threads — главная">
-        <span class="logo-mark">ct</span><span>Campus Threads<small>Казахстанско-Британский<br>технический университет</small></span>
+      <a class="app-brand" href="/" aria-label="Campus Threads — главная" data-i18n-aria>
+        <span class="logo-mark">ct</span><span>Campus Threads<small data-i18n>Казахстанско-Британский технический университет</small></span>
       </a>
-      <nav class="tabbar" id="navigation" aria-label="Навигация приложения"></nav>
-      <button class="btn primary sidebar-compose" data-act="go" data-go="compose">Написать тред</button>
+      <nav class="tabbar" id="navigation" aria-label="Навигация приложения" data-i18n-aria></nav>
+      <button class="btn primary sidebar-compose" data-act="go" data-go="compose" data-i18n>Написать тред</button>
       <div class="sidebar-bottom">
+        <label class="language-settings"><span data-i18n>Язык интерфейса</span>
+          <select id="languageSelect"><option value="ru">Русский</option><option value="en">English</option></select>
+        </label>
+        <button class="link" id="analyticsLink" data-act="go" data-go="analytics" data-i18n hidden>Сводка команды</button>
         <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
           <span aria-hidden="true">◐</span><span id="themeLabel">Тёмная тема</span>
         </button>
@@ -34,21 +38,21 @@
       <header class="workspace-header">
         <div><p class="eyebrow">CAMPUS THREADS</p><h1 id="pageTitle">Добро пожаловать</h1></div>
         <form class="header-search search" data-form="search" id="headerSearch">
-          <input name="term" aria-label="Поиск по кампусу" placeholder="Поиск по кампусу" maxlength="100">
-          <button type="submit" aria-label="Искать">↵</button>
+          <input name="term" aria-label="Поиск по кампусу" placeholder="Поиск по кампусу" maxlength="100" data-i18n-aria data-i18n-placeholder>
+          <button type="submit" aria-label="Искать" data-i18n-aria>↵</button>
         </form>
       </header>
       <div class="content-layout">
         <div class="phone" id="phone">
           <div class="screen" id="screen" tabindex="-1"><p class="empty" role="status">Подключаемся…</p></div>
         </div>
-        <aside class="context-column" aria-label="В кампусе">
+        <aside class="context-column" aria-label="В кампусе" data-i18n-aria>
           <section class="context-section">
-            <div class="context-heading"><h2>Ближайшие события</h2><button class="link" data-act="go" data-go="events">Все события</button></div>
+            <div class="context-heading"><h2 data-i18n>Ближайшие события</h2><button class="link" data-act="go" data-go="events" data-i18n>Все события</button></div>
             <div id="upcomingEvents"><p class="context-empty">Загружаем афишу…</p></div>
           </section>
           <section class="context-section">
-            <h2>Твои сообщества</h2>
+            <h2 data-i18n>Твои сообщества</h2>
             <div id="myCommunities"></div>
           </section>
           <p class="context-footer">Campus Threads · КБТУ</p>
@@ -59,6 +63,12 @@
   <script>
     // Это сообщение работает, даже если основной файл приложения не загрузился.
     (() => {
+      let english = false;
+      try { english = localStorage.getItem('campus-language') === 'en'; } catch {}
+      if (english) {
+        document.documentElement.lang = 'en';
+        document.querySelector('#screen [role="status"]').textContent = 'Connecting…';
+      }
       let ready = false;
       function fail() {
         if (ready) return;
@@ -66,10 +76,11 @@
         panel.className = 'empty';
         panel.setAttribute('role', 'alert');
         const text = document.createElement('p');
-        text.textContent = 'Не удалось загрузить приложение. Проверьте соединение и попробуйте ещё раз.';
+        text.textContent = english ? 'The app could not load. Check your connection and try again.'
+          : 'Не удалось загрузить приложение. Проверьте соединение и попробуйте ещё раз.';
         const retry = document.createElement('button');
         retry.className = 'btn primary';
-        retry.textContent = 'Загрузить заново';
+        retry.textContent = english ? 'Reload' : 'Загрузить заново';
         retry.addEventListener('click', () => location.reload());
         panel.append(text, retry);
         document.getElementById('screen').replaceChildren(panel);

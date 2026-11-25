@@ -1,105 +1,105 @@
 {
-  "testedAt": "2026-11-19T11:01:00.025Z",
+  "testedAt": "2026-11-25T12:23:42.373Z",
   "tests": [
     {
       "name": "01 · Сайт открывается без общего пароля",
       "passed": true,
-      "milliseconds": 241
+      "milliseconds": 267
     },
     {
       "name": "02 · Вход по имени пользователя и паролю",
       "passed": true,
-      "milliseconds": 508
+      "milliseconds": 424
     },
     {
       "name": "03 · Сессия сохраняется после обновления страницы",
       "passed": true,
-      "milliseconds": 229
+      "milliseconds": 234
     },
     {
       "name": "04 · Выход закрывает сессию",
       "passed": true,
-      "milliseconds": 549
+      "milliseconds": 540
     },
     {
       "name": "05 · Регистрация с адресом КБТУ",
       "passed": true,
-      "milliseconds": 445
+      "milliseconds": 417
     },
     {
       "name": "06 · Другой почтовый домен отклоняется",
       "passed": true,
-      "milliseconds": 261
+      "milliseconds": 272
     },
     {
-      "name": "07 · Тёмная тема переключается и сохраняется",
+      "name": "07 · Тёмная тема и английский язык сохраняются",
       "passed": true,
-      "milliseconds": 286
+      "milliseconds": 396
     },
     {
       "name": "08 · Десктоп использует боковую навигацию и широкую ленту",
       "passed": true,
-      "milliseconds": 230
+      "milliseconds": 234
     },
     {
       "name": "09 · Мобильный экран помещается в 390 пикселей",
       "passed": true,
-      "milliseconds": 203
+      "milliseconds": 194
     },
     {
       "name": "10 · Нажатие анимируется, reduced motion учитывается",
       "passed": true,
-      "milliseconds": 272
+      "milliseconds": 256
     },
     {
       "name": "11 · Публикация нового треда",
       "passed": true,
-      "milliseconds": 285
+      "milliseconds": 263
     },
     {
       "name": "12 · Лайк добавляется и убирается",
       "passed": true,
-      "milliseconds": 414
+      "milliseconds": 304
     },
     {
       "name": "13 · Ответ сохраняется в треде",
       "passed": true,
-      "milliseconds": 327
+      "milliseconds": 308
     },
     {
       "name": "14 · Анонимная публикация скрывает автора",
       "passed": true,
-      "milliseconds": 295
+      "milliseconds": 294
     },
     {
       "name": "15 · Удаление своей публикации",
       "passed": true,
-      "milliseconds": 306
-    },
-    {
-      "name": "16 · Поиск из десктопной шапки",
-      "passed": true,
-      "milliseconds": 236
-    },
-    {
-      "name": "17 · Создание сообщества и вступление",
-      "passed": true,
-      "milliseconds": 293
-    },
-    {
-      "name": "18 · Модератор сайта публикует мероприятие",
-      "passed": true,
       "milliseconds": 303
+    },
+    {
+      "name": "16 · Поиск постов, точного хэштега, сообществ и мероприятий",
+      "passed": true,
+      "milliseconds": 382
+    },
+    {
+      "name": "17 · Сообщество сохраняет последнего администратора",
+      "passed": true,
+      "milliseconds": 338
+    },
+    {
+      "name": "18 · Новое мероприятие с фото открывается за пределами первой страницы",
+      "passed": true,
+      "milliseconds": 523
     },
     {
       "name": "19 · Получение бесплатного пропуска",
       "passed": true,
-      "milliseconds": 278
+      "milliseconds": 277
     },
     {
       "name": "20 · Страницы ленты переходят без дублей",
       "passed": true,
-      "milliseconds": 244
+      "milliseconds": 232
     }
   ]
 }

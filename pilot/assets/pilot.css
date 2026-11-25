@@ -135,6 +135,13 @@ body.authed .sidebar-compose { display: inline-flex; }
 .toast.err { background: #9f2849; color: #fff; }
 .toast { right: auto; }
 .toast.out { transform: translate(-50%, 8px); }
+.event-cover { display: block; width: 100%; aspect-ratio: 2 / 1; object-fit: cover; border-radius: 12px; }
+.event-title { font-weight: inherit; text-align: left; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 18px 0; }
+.metric-grid div { padding: 14px; border-radius: 10px; background: var(--subtle); }
+.metric-grid dd { margin: 5px 0 0; font-size: 24px; font-weight: 700; }
+.language-settings { display: grid; gap: 4px; font-size: 12px; }
+.language-settings select { max-width: 132px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 5px; }
 body:not(.authed) .context-column, body:not(.authed) .header-search { display: none; }
 body:not(.authed) .content-layout { display: block; max-width: 650px; margin: 45px auto; }
 body:not(.authed) .phone, body:not(.authed) .screen { min-height: 0; }
