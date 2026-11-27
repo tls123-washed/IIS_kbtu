@@ -94,7 +94,7 @@ async function render() {
   $('#pageTitle').textContent = t(titles[v.name] || 'Campus Threads');
   $('#analyticsLink').hidden = !app.me?.site_moderator;
   $('#sidebarAccount').innerHTML = app.me ? `<button data-act="profile" data-id="${app.me.user_id}">
-    ${avatar(app.me.full_name, app.me.user_id, 36)}<span><b>${esc(app.me.full_name)}</b><small>@${esc(app.me.username)}</small></span></button>` : '';
+    ${avatar(app.me.full_name, app.me.user_id, 36, false, app.me.avatar_version)}<span><b>${esc(app.me.full_name)}</b><small>@${esc(app.me.username)}</small></span></button>` : '';
   for (const button of $('#navigation').querySelectorAll('button')) {
     const current = button.dataset.go === v.name;
     button.classList.toggle('on', current);
@@ -301,7 +301,7 @@ const forms = {
   },
   async createEvent(data) {
     const { photo, ...fields } = data;
-    const cover = photo?.size ? await encodeCover(photo) : null;
+    const cover = photo?.size ? await encodePhoto(photo) : null;
     const event = await send('/events', { ...fields, cover, capacity: Number(fields.capacity) });
     app.history = [{ name: 'events' }];
     await go('event', { id: event.event_id }, false);
@@ -335,27 +335,31 @@ const forms = {
   },
 };
 
-async function encodeCover(file) {
+async function encodePhoto(file, profile = false) {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) {
     throw new Error(t('Выберите фото JPG, PNG или WebP до 8 МБ.'));
   }
   let bitmap;
   try {
     bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 960 / Math.max(bitmap.width, bitmap.height));
+    const side = Math.min(bitmap.width, bitmap.height);
+    const width = profile ? side : bitmap.width;
+    const height = profile ? side : bitmap.height;
+    const scale = Math.min(1, (profile ? 384 : 960) / Math.max(width, height));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
     const context = canvas.getContext('2d', { alpha: false });
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, (bitmap.width - width) / 2, (bitmap.height - height) / 2,
+      width, height, 0, 0, canvas.width, canvas.height);
     let encoded = canvas.toDataURL('image/jpeg', .75).split(',')[1];
     if (encoded.length > 280_000) encoded = canvas.toDataURL('image/jpeg', .5).split(',')[1];
     if (encoded.length > 280_000) throw new Error();
     return encoded;
   } catch {
-    throw new Error(t('Не удалось обработать фото мероприятия.'));
+    throw new Error(t(profile ? 'Не удалось обработать фото профиля.' : 'Не удалось обработать фото мероприятия.'));
   } finally {
     bitmap?.close();
   }
@@ -389,6 +393,22 @@ document.addEventListener('submit', event => {
   const data = Object.fromEntries(new FormData(form));
   if (form.dataset.form === 'search') document.activeElement?.blur();
   run(button, () => forms[form.dataset.form](data, form));
+});
+
+screen.addEventListener('change', event => {
+  const input = event.target;
+  const file = input.name === 'avatar' && input.files?.[0];
+  if (!file) return;
+  const owner = app.me?.user_id;
+  run(input, async () => {
+    const photo = await encodePhoto(file, true);
+    if (app.me?.user_id !== owner) return;
+    const result = await api('/me/avatar', { method: 'PUT', body: { photo } });
+    if (app.me?.user_id !== owner) return;
+    app.me.avatar_version = result.avatar_version;
+    await refresh();
+    toast(t('Фото профиля сохранено.'));
+  }).finally(() => { input.value = ''; });
 });
 
 screen.addEventListener('input', event => {

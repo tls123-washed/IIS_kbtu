@@ -341,6 +341,29 @@ class PilotTest(unittest.TestCase):
         self.assertEqual(moderator.get("/api/events").headers["X-Can-Create-Event"], "1")
         self.assertEqual(moderator.post("/api/events", json={**event, "title": "Встреча организатора"}).status_code, 201)
 
+    def test_profile_photo_replacement_and_anonymous_posts(self):
+        client = self.client
+        owner = self.register(client, "photographer")
+        viewer = self.enterContext(TestClient(app, base_url=ORIGIN, headers={"Origin": ORIGIN}))
+        photo_path = f"/api/users/{owner}/avatar"
+        self.assertEqual(viewer.get(photo_path).status_code, 401)
+        self.assertEqual(viewer.put("/api/me/avatar", json={"photo": "abc"}).status_code, 401)
+        self.register(viewer, "observer")
+        self.assertEqual(viewer.get(photo_path).status_code, 404)
+        for version, color in enumerate(("red", "navy"), start=1):
+            image = BytesIO()
+            Image.new("RGB", (16, 16), color).save(image, format="JPEG")
+            saved = client.put("/api/me/avatar", json={"photo": b64encode(image.getvalue()).decode()})
+            self.assertEqual(saved.json()["avatar_version"], version)
+            self.assertEqual(viewer.get(f"/api/users/{owner}").json()["profile"]["avatar_version"], version)
+            self.assertEqual(Image.open(BytesIO(viewer.get(photo_path).content)).size, (16, 16))
+        self.assertEqual(client.put("/api/me/avatar", json={"photo": "bad-image"}).status_code, 422)
+        client.post("/api/posts", json={"content": "First"})
+        client.post("/api/posts", json={"content": "Question", "anonymous": True})
+        hidden, named = viewer.get("/api/feed").json()
+        self.assertNotIn("avatar_version", hidden)
+        self.assertEqual(named["avatar_version"], 2)
+
     def test_event_archive_cover_and_check_in(self):
         moderator = self.client
         member = self.enterContext(TestClient(app, base_url=ORIGIN, headers={"Origin": ORIGIN}))

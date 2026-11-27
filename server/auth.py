@@ -79,8 +79,8 @@ def session_user(request: Request, db: Db):
     token = request.cookies.get(COOKIE, "")
     if len(token) == 43:
         return db.execute("""
-            SELECT a.*, campus_api.is_site_moderator(a.user_id) AS site_moderator
-            FROM campus_api.session_user(%s, %s) a
+            SELECT a.*, campus_api.is_site_moderator(a.user_id) AS site_moderator, u.avatar_version
+            FROM campus_api.session_user(%s, %s) a JOIN public.users u USING (user_id)
         """, (digest(token), settings().domain_signup)).fetchone()
 
 
@@ -142,9 +142,9 @@ def login(body: Login, request: Request, response: Response, db: Db):
     limit(db, f"login-ip:{request.client.host}", 30, "15 minutes")
     username = body.username.strip().lower()
     limit(db, f"login-user:{username}", 12, "15 minutes")
-    user = db.execute("""SELECT (account).*, password_hash,
+    user = db.execute("""SELECT (account).*, login.password_hash, u.avatar_version,
                       campus_api.is_site_moderator((account).user_id) AS site_moderator
-                      FROM campus_api.login_account(%s, %s)""",
+                      FROM campus_api.login_account(%s, %s) login JOIN public.users u ON u.user_id = (account).user_id""",
                       (username, settings().domain_signup)).fetchone()
     password = body.password.encode()
     stored_hash = user.pop("password_hash") if user else None

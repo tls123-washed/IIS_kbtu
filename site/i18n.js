@@ -1,5 +1,7 @@
 // Русские строки интерфейса служат ключами. Данные пользователей не переводятся.
 const en = {
+  'Новогодняя тема': 'New Year theme', 'Изменить фото': 'Change photo',
+  'Фото профиля сохранено.': 'Profile photo saved.', 'Не удалось обработать фото профиля.': 'Could not process the profile photo.',
   'Перейти к содержимому': 'Skip to content',
   'Campus Threads — главная': 'Campus Threads home',
   'Казахстанско-Британский технический университет': 'Kazakh-British Technical University',

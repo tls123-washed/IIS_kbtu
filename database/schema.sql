@@ -1,4 +1,4 @@
--- Campus Threads: schema version 10, PostgreSQL 18.
+-- Campus Threads: schema version 11, PostgreSQL 18.
 -- Restore into a NEW EMPTY database. No user data included.
 
 --
@@ -229,8 +229,11 @@ CREATE TABLE public.users (
     created_at timestamp without time zone DEFAULT now() NOT NULL,
     email_verified_at timestamp with time zone,
     domain_registration boolean DEFAULT false NOT NULL,
+    avatar_jpeg bytea,
+    avatar_version integer DEFAULT 0 NOT NULL,
     CONSTRAINT domain_registration_kbtu_email CHECK (((NOT domain_registration) OR ((email)::text ~ '^[a-z0-9_+%-]+([.][a-z0-9_+%-]+)*@kbtu[.]kz$'::text))),
     CONSTRAINT domain_registration_password CHECK (((NOT domain_registration) OR (password_hash IS NOT NULL))),
+    CONSTRAINT users_avatar_jpeg_check CHECK ((octet_length(avatar_jpeg) <= 200000)),
     CONSTRAINT users_email_check CHECK (((email)::text ~~ '%_@_%._%'::text)),
     CONSTRAINT users_user_type_check CHECK (((user_type)::text = ANY ((ARRAY['student'::character varying, 'teacher'::character varying])::text[]))),
     CONSTRAINT users_username_check CHECK (((username)::text ~ '^[a-z0-9_.]{3,30}$'::text)),

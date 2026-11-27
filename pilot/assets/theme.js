@@ -2,6 +2,8 @@
   const preference = matchMedia('(prefers-color-scheme: dark)');
   let saved;
   try { saved = localStorage.getItem('campus-theme'); } catch {}
+  const root = document.documentElement;
+  try { root.toggleAttribute('data-winter', localStorage.getItem('campus-winter') === 'on'); } catch {}
   const chosen = saved === 'light' || saved === 'dark' ? saved : null;
   document.documentElement.dataset.theme = chosen || (preference.matches ? 'dark' : 'light');
   function updateControl() {
@@ -16,6 +18,15 @@
     }
   }
   document.addEventListener('DOMContentLoaded', () => {
+    const winterToggle = document.getElementById('winterToggle');
+    winterToggle.checked = root.hasAttribute('data-winter');
+    const loadWinter = () => import('/assets/winter.js').then(module => module.updateWinter());
+    if (winterToggle.checked) loadWinter();
+    winterToggle.addEventListener('change', () => {
+      root.toggleAttribute('data-winter', winterToggle.checked);
+      try { localStorage.setItem('campus-winter', winterToggle.checked ? 'on' : 'off'); } catch {}
+      loadWinter();
+    });
     updateControl();
     document.getElementById('themeToggle').addEventListener('click', () => {
       const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';

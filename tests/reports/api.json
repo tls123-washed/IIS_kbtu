@@ -1,9 +1,9 @@
 {
-  "tested_at": "2026-11-25T12:18:33.621548+00:00",
+  "tested_at": "2026-11-27T07:47:46.588110+00:00",
   "database_source": "database/schema.sql + reference_data.sql restored into a fresh local database",
-  "tests_run": 13,
+  "tests_run": 14,
   "failures": 0,
   "errors": 0,
   "passed": true,
-  "duration_seconds": 9.58
+  "duration_seconds": 11.22
 }

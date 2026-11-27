@@ -15,6 +15,7 @@
   <link rel="modulepreload" href="/assets/views.js">
 </head>
 <body>
+  <div id="winterScene" aria-hidden="true"><canvas></canvas><div class="winter-flurries"></div></div>
   <a class="skip-link" href="#screen" data-i18n>Перейти к содержимому</a>
   <div class="desktop-layout">
     <aside class="sidebar">
@@ -27,6 +28,7 @@
         <label class="language-settings"><span data-i18n>Язык интерфейса</span>
           <select id="languageSelect"><option value="ru">Русский</option><option value="en">English</option></select>
         </label>
+        <label class="winter-setting"><input type="checkbox" id="winterToggle"><span class="winter-switch" aria-hidden="true"></span><span data-i18n>Новогодняя тема</span></label>
         <button class="link" id="analyticsLink" data-act="go" data-go="analytics" data-i18n hidden>Сводка команды</button>
         <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
           <span aria-hidden="true">◐</span><span id="themeLabel">Тёмная тема</span>
@@ -36,6 +38,7 @@
     </aside>
     <main class="workspace">
       <header class="workspace-header">
+        <canvas class="winter-banner" aria-hidden="true"></canvas>
         <div><p class="eyebrow">CAMPUS THREADS</p><h1 id="pageTitle">Добро пожаловать</h1></div>
         <form class="header-search search" data-form="search" id="headerSearch">
           <input name="term" aria-label="Поиск по кампусу" placeholder="Поиск по кампусу" maxlength="100" data-i18n-aria data-i18n-placeholder>

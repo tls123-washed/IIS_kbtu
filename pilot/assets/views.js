@@ -104,7 +104,7 @@ export function createViews(api, app) {
         <button class="${tab === 'all' ? 'on' : ''}" data-act="feedtab" data-tab="all">${t('Для вас')}</button>
         <button class="${tab === 'follow' ? 'on' : ''}" data-act="feedtab" data-tab="follow">${t('Подписки')}</button>
       </div>
-      <button class="composer-stub" data-act="go" data-go="compose">${avatar(app.me.full_name, app.me.user_id, 36)}<span>${t('Что нового,')} ${esc(app.me.first_name)}?</span><b>${t('Опубликовать')}</b></button>
+      <button class="composer-stub" data-act="go" data-go="compose">${avatar(app.me.full_name, app.me.user_id, 36, false, app.me.avatar_version)}<span>${t('Что нового,')} ${esc(app.me.first_name)}?</span><b>${t('Опубликовать')}</b></button>
       <div data-live="feed">
       ${rows.length ? rows.map(r => postCard(r)).join('') : `<div class="empty">${empty}<br><button class="link" data-act="go" data-go="search">${t('Найти людей')}</button></div>`}
       ${pageControls(v, next)}</div>`;
@@ -116,7 +116,7 @@ export function createViews(api, app) {
       ${backbar(t('Тред'))}
       <div data-live="thread">${postCard(root, { main: true })}</div>
       <form class="reply-box" data-form="reply" data-id="${root.post_id}">
-        ${avatar(app.me.full_name, app.me.user_id, 30)}
+        ${avatar(app.me.full_name, app.me.user_id, 30, false, app.me.avatar_version)}
         <input name="content" maxlength="500" required placeholder="${t('Ответить')} ${root.is_anonymous ? t('анониму') : esc(root.full_name)}…">
         <button class="btn primary sm" type="submit">${t('Ответить')}</button>
       </form>
@@ -129,7 +129,7 @@ export function createViews(api, app) {
       return `
       ${backbar(t('Новый тред'))}
       <form class="compose" data-form="compose">
-        <div class="compose-row">${avatar(app.me.full_name, app.me.user_id, 40)}
+        <div class="compose-row">${avatar(app.me.full_name, app.me.user_id, 40, false, app.me.avatar_version)}
           <div class="compose-main">
             <b>${esc(app.me.full_name)}</b>
             <textarea name="content" maxlength="500" rows="6" required placeholder="${t('Начните тред… Хэштеги через #, например #сессия')}"></textarea>
@@ -160,9 +160,10 @@ export function createViews(api, app) {
       <section class="profile">
         <div class="prof-top" data-live="profile">
           <div><h2>${esc(p.full_name)}</h2><span class="handle">@${esc(p.username)}</span></div>
-          ${avatar(p.full_name, p.user_id, 64)}
+          ${avatar(p.full_name, p.user_id, 64, false, p.avatar_version)}
         </div>
         <div class="badges" data-live="badges">${badges}</div>
+        ${me ? `<label class="avatar-picker btn sm">${icon('user')}${t('Изменить фото')}<input type="file" name="avatar" accept="image/jpeg,image/png,image/webp"></label>` : ''}
         ${me ? `<form class="bio-form" data-form="bio"><input name="bio" maxlength="160" value="${esc(p.bio || '')}" placeholder="${t('Добавьте био (до 160 символов)')}"><button class="btn sm" type="submit">${t('Сохранить')}</button></form>`
              : `<div data-live="bio">${p.bio ? `<p class="bio">${esc(p.bio)}</p>` : ''}</div>`}
         ${me && app.auth.microsoft ? `<button class="btn sm" data-act="microsoft">${t('Подключить Microsoft')}</button>` : ''}

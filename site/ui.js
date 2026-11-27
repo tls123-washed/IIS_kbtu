@@ -4,12 +4,13 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const HUES = [212, 262, 340, 18, 145, 190, 38, 290];
-function avatar(name, id, size = 36, anon = false) {
+function avatar(name, id, size = 36, anon = false, version = 0) {
   if (anon) return `<span class="av av-anon" style="--s:${size}px" aria-hidden="true">?</span>`;
   const parts = String(name || '?').trim().split(/\s+/);
   const ini = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
   const h = HUES[(id || 0) % HUES.length];
-  return `<span class="av" style="--s:${size}px;--h:${h}" aria-hidden="true">${esc(ini.toUpperCase())}</span>`;
+  const photo = version > 0 ? `<img src="/api/users/${Number(id)}/avatar?v=${Number(version)}" alt="" loading="lazy">` : '';
+  return `<span class="av" style="--s:${size}px;--h:${h}" aria-hidden="true">${esc(ini.toUpperCase())}${photo}</span>`;
 }
 function ago(d) {
   const date = new Date(d);
@@ -55,7 +56,7 @@ function postCard(p, opts = {}) {
   const profileAttr = anon ? '' : `data-act="profile" data-id="${p.author_id}"`;
   return `
   <article class="post ${opts.reply ? 'reply' : ''} ${opts.main ? 'main' : ''}" style="--depth:${opts.depth || 0}">
-    <div class="post-av" ${profileAttr}>${avatar(name, p.author_id, opts.main ? 40 : 36, anon)}${opts.line ? '<span class="thread-line"></span>' : ''}</div>
+    <div class="post-av" ${profileAttr}>${avatar(name, p.author_id, opts.main ? 40 : 36, anon, p.avatar_version)}${opts.line ? '<span class="thread-line"></span>' : ''}</div>
     <div class="post-body">
       <header class="post-head">
         <button class="name" ${profileAttr} ${anon ? 'disabled' : ''}>${esc(name)}</button>${who}
@@ -73,7 +74,7 @@ function postCard(p, opts = {}) {
 }
 
 function userRow(u, extra) {
-  return `<button class="user-row" data-act="profile" data-id="${u.user_id}">${avatar(u.full_name, u.user_id, 40)}<span><b>${esc(u.full_name)}</b><small>@${esc(u.username)} · ${t(u.user_type === 'teacher' ? 'преподаватель' : 'студент')}${u.faculty ? ' · ' + esc(u.faculty) : ''}</small></span><small class="mono">${extra || u.followers + ' ' + t('подп.')}</small></button>`;
+  return `<button class="user-row" data-act="profile" data-id="${u.user_id}">${avatar(u.full_name, u.user_id, 40, false, u.avatar_version)}<span><b>${esc(u.full_name)}</b><small>@${esc(u.username)} · ${t(u.user_type === 'teacher' ? 'преподаватель' : 'студент')}${u.faculty ? ' · ' + esc(u.faculty) : ''}</small></span><small class="mono">${extra || u.followers + ' ' + t('подп.')}</small></button>`;
 }
 function backbar(title) {
   return `<div class="topbar"><button class="icon-btn" data-act="back" aria-label="${t('Назад')}">${icon('back')}</button><span class="top-title">${esc(title)}</span></div>`;

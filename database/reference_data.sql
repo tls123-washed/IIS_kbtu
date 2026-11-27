@@ -11,4 +11,4 @@ INSERT INTO public.faculties (faculty_id, name, short_name) VALUES
 
 SELECT pg_catalog.setval(pg_get_serial_sequence('public.faculties', 'faculty_id'), (SELECT max(faculty_id) FROM public.faculties), true);
 
-INSERT INTO public.campus_migrations (version) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+INSERT INTO public.campus_migrations (version) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);

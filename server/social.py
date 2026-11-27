@@ -1,13 +1,14 @@
 import re
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, HTTPException, Path, Query, Response
 from psycopg import Error
 from psycopg.errors import UniqueViolation
 from pydantic import BaseModel, Field, StringConstraints
 
 from .auth import User
 from .db import Db
+from .images import prepare_photo
 from .pagination import Pagination
 
 router = APIRouter(prefix="/api", tags=["Соцсеть"])
@@ -29,6 +30,10 @@ class BioInput(BaseModel):
     bio: str = Field(max_length=160)
 
 
+class AvatarInput(BaseModel):
+    photo: str = Field(min_length=1, max_length=280_000)
+
+
 class CommunityInput(BaseModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
     description: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] = ""
@@ -36,9 +41,17 @@ class CommunityInput(BaseModel):
 
 def add_delete_permissions(db, user_id, posts):
     if posts:
-        rights = db.execute("SELECT * FROM campus_api.post_moderation(%s)", (user_id,)).fetchone()
+        authors = {post['author_id'] for post in posts if not post['is_anonymous']}
+        rights = db.execute("""
+            SELECT rights.*, (SELECT jsonb_object_agg(user_id, avatar_version)
+                FROM public.users WHERE user_id = ANY(%s::int[]) AND avatar_version > 0) AS photos
+            FROM campus_api.post_moderation(%s) rights
+        """, (list(authors), user_id)).fetchone()
         moderated = set(rights["community_ids"])
+        photos = rights["photos"] or {}
         for post in posts:
+            if not post['is_anonymous']:
+                post['avatar_version'] = photos.get(str(post['author_id']), 0)
             post["can_delete"] = post["mine"] or rights["site_wide"] or post["community_id"] in moderated
     return posts
 
@@ -97,7 +110,8 @@ def like(post_id: Id, body: Toggle, db: Db, user: User):
 @router.get("/users/{user_id}")
 def profile(user_id: Id, db: Db, user: User):
     args = (user["user_id"], user_id)
-    person = db.execute("SELECT * FROM campus_api.read_profile(%s, %s)", args).fetchone()
+    person = db.execute("""SELECT p.*, u.avatar_version FROM campus_api.read_profile(%s, %s) p
+                           JOIN public.users u USING (user_id)""", args).fetchone()
     if not person:
         raise HTTPException(404, "Пользователь не найден.")
     posts = db.execute("SELECT * FROM campus_api.profile_posts(%s, %s)", args).fetchall()
@@ -107,6 +121,21 @@ def profile(user_id: Id, db: Db, user: User):
 @router.patch("/me/bio", status_code=204)
 def bio(body: BioInput, db: Db, user: User):
     db.execute("CALL campus_api.update_bio(%s, %s)", (user["user_id"], body.bio.strip()))
+
+
+@router.put("/me/avatar")
+def update_avatar(body: AvatarInput, db: Db, user: User):
+    photo = prepare_photo(body.photo, "Не удалось обработать фото профиля.")
+    return db.execute("""UPDATE public.users SET avatar_jpeg = %s, avatar_version = avatar_version + 1
+                         WHERE user_id = %s RETURNING avatar_version""", (photo, user["user_id"])).fetchone()
+
+
+@router.get("/users/{user_id}/avatar", response_class=Response)
+def get_avatar(user_id: Id, db: Db, user: User):
+    row = db.execute("SELECT avatar_jpeg FROM public.users WHERE user_id = %s", (user_id,)).fetchone()
+    if not row or row["avatar_jpeg"] is None:
+        raise HTTPException(404, "Фото не найдено.")
+    return Response(row["avatar_jpeg"], media_type="image/jpeg", headers={"Cache-Control": "private, max-age=300"})
 
 
 @router.put("/users/{user_id}/follow", status_code=204)
@@ -164,6 +193,13 @@ def search(db: Db, user: User, term: str = Query("", max_length=100), tag: str =
                         (user["user_id"], term, tag)).fetchone()["result"]
     if "posts" in result:
         add_delete_permissions(db, user["user_id"], result["posts"])
+    people = result.get("users") or result.get("recommendations") or []
+    if people:
+        rows = db.execute("SELECT user_id, avatar_version FROM public.users WHERE user_id = ANY(%s::int[])",
+                          ([person["user_id"] for person in people],)).fetchall()
+        versions = {row["user_id"]: row["avatar_version"] for row in rows}
+        for person in people:
+            person["avatar_version"] = versions.get(person["user_id"], 0)
     if term and not tag:
         result.update(db.execute("SELECT campus_api.search_catalog(%s) AS result", (term,)).fetchone()["result"])
     return result

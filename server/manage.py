@@ -21,6 +21,7 @@ MIGRATIONS = (
     (8, "server/schema/08_remove_email_codes.sql"),
     (9, "server/schema/09_moderator_events.sql"),
     (10, "server/schema/10_campus_dashboard.sql"),
+    (11, "server/schema/11_profile_photos.sql"),
 )
 
 

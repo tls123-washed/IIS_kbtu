@@ -111,7 +111,7 @@ try {
     await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
     await page.getByRole('alert').getByText('Введите корпоративную почту с окончанием @kbtu.kz.').waitFor();
   });
-  await test('07 · Тёмная тема и английский язык сохраняются', async page => {
+  await test('07 · Тема, зимнее оформление и язык сохраняются', async page => {
     await signedIn(page);
     await page.getByRole('button', { name: 'Тёмная тема' }).click();
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
@@ -119,11 +119,17 @@ try {
     await page.getByRole('button', { name: 'Светлая тема' }).waitFor();
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
     await page.screenshot({ path: path.join(output, 'desktop-dark.png') });
+    await page.locator('.winter-setting').click();
     await page.locator('#languageSelect').selectOption('en');
     await page.locator('#navigation').getByRole('button', { name: 'Feed', exact: true }).waitFor();
     await page.reload();
     await page.locator('#navigation').getByRole('button', { name: 'Events', exact: true }).waitFor();
     assert.equal(await page.locator('html').getAttribute('lang'), 'en');
+    assert.equal(await page.getByRole('checkbox', { name: 'New Year theme' }).isChecked(), true);
+    await page.waitForFunction(() => document.querySelector('#winterScene canvas').width >= innerWidth);
+    await page.screenshot({ path:path.join(root,'.runtime/winter-night.png') });
+    await page.locator('.winter-setting').click();
+    assert.equal(await page.locator('#winterScene').isVisible(), false);
   });
   await test('08 · Десктоп использует боковую навигацию и широкую ленту', async page => {
     await signedIn(page);
@@ -131,12 +137,36 @@ try {
     assert.ok((await page.locator('#navigation').boundingBox()).x < (await page.locator('#phone').boundingBox()).x);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, 'desktop-light.png') });
+    await page.locator('.winter-setting').click();
+    for (const [width,height] of [[3840,2160],[2560,1440]]) {
+      await page.setViewportSize({ width, height });
+      await page.waitForFunction(() => document.querySelector('#winterScene canvas').width === innerWidth);
+      assert.equal((await page.locator('#winterScene').boundingBox()).height, height);
+    }
+    await nav(page,'Профиль');
+    const png = await page.evaluate(() => {
+      const photo = document.createElement('canvas');
+      photo.getContext('2d').fillRect(0,0,photo.width,photo.height);
+      return photo.toDataURL().split(',')[1];
+    });
+    await page.locator('input[name=avatar]').setInputFiles({name:'avatar.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});
+    await page.waitForFunction(() => document.querySelector('.prof-top .av img')?.naturalWidth > 0);
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#sidebarAccount img')?.naturalWidth > 0);
+    await nav(page,'Профиль');
+    await page.locator('.prof-top img').waitFor();
+    await page.screenshot({ path:path.join(root,'.runtime/winter-wide.png') });
   });
   await test('09 · Мобильный экран помещается в 390 пикселей', async page => {
     await page.setViewportSize({ width: 390, height: 844 });
     await signedIn(page);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     assert.equal(await page.locator('#navigation').evaluate(el => getComputedStyle(el).position), 'fixed');
+    await page.locator('.winter-setting').click();
+    await nav(page, 'Профиль');
+    await page.locator('.avatar-picker').waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path:path.join(root,'.runtime/winter-mobile.png') });
   });
   await test('10 · Нажатие анимируется, reduced motion учитывается', async page => {
     await page.goto(fixtures.origin);
@@ -149,6 +179,11 @@ try {
     await page.mouse.up();
     await page.emulateMedia({ reducedMotion: 'reduce' });
     assert.ok(parseFloat(await toggle.evaluate(el => getComputedStyle(el).transitionDuration)) < .01);
+    await page.locator('.winter-setting').click();
+    await page.waitForFunction(() => document.querySelector('#winterScene canvas').width >= innerWidth);
+    await toggle.click();
+    assert.equal(await page.locator('.snow-bit').count(), 0);
+    assert.equal(await page.locator('.winter-flurries').isVisible(), false);
   });
   await test('11 · Публикация нового треда', async page => {
     await signedIn(page);

@@ -104,7 +104,7 @@ def index(request: Request):
     )
     # Первое отображение не ждёт отдельных CSS-файлов и файла темы.
     styles = "\n".join((ROOT / name).read_text(encoding="utf-8") for name in (
-        "site/styles.css", "pilot/assets/pilot.css",
+        "site/styles.css", "pilot/assets/pilot.css", "pilot/assets/winter.css",
     ))
     theme = (ROOT / "pilot/assets/theme.js").read_text(encoding="utf-8")
     html = html.replace("<!-- APP_STYLES -->", f"<style>{styles}</style>")

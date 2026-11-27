@@ -1,15 +1,12 @@
-from base64 import b64decode
-from binascii import Error as Base64Error
-from io import BytesIO
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Response
-from PIL import Image
 from pydantic import BaseModel, Field, NaiveDatetime, StringConstraints
 
 from .auth import User
 from .db import Db
+from .images import prepare_photo
 from .pagination import Pagination
 from .social import Id
 
@@ -34,23 +31,6 @@ class CheckIn(BaseModel):
     ticket_id: UUID
 
 
-def prepare_cover(value):
-    if value is None:
-        return None
-    try:
-        raw = b64decode(value, validate=True)
-        with Image.open(BytesIO(raw), formats=['JPEG']) as image:
-            if max(image.size) > 960:
-                raise ValueError
-            output = BytesIO()
-            image.convert('RGB').save(output, format='JPEG', quality=78, optimize=True)
-        if output.tell() > 200_000:
-            raise ValueError
-        return output.getvalue()
-    except (Base64Error, OSError, ValueError, Image.DecompressionBombError):
-        raise HTTPException(422, "Не удалось обработать фото мероприятия.") from None
-
-
 @router.get("/events")
 def events(db: Db, user: User, page: Pagination, response: Response, archive: bool = False):
     user_id = user["user_id"]
@@ -64,7 +44,7 @@ def events(db: Db, user: User, page: Pagination, response: Response, archive: bo
 
 @router.post("/events", status_code=201)
 def create_event(body: EventInput, db: Db, user: User):
-    cover = prepare_cover(body.cover)
+    cover = prepare_photo(body.cover, "Не удалось обработать фото мероприятия.") if body.cover is not None else None
     with db.transaction():
         result = db.execute(
             "SELECT * FROM campus_api.create_event(%s, %s, %s, %s, %s, %s)",
